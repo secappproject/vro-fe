@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { X, PlusCircle, MoreVertical, Upload, Download } from "lucide-react";
+import { X, PlusCircle, MoreVertical, Upload, Download, FileUp, FileSpreadsheet } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,12 +127,12 @@ function TableFab({ data }: TableFabProps) {
 
   return (
     <>
-      <div className="fixed bottom-20 right-6 z-50 md:bottom-6">
+      <div className="fixed bottom-32 right-6 z-50 md:bottom-6">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="rounded-full h-14 w-14 shadow-lg">
-              <MoreVertical className="h-6 w-6" />
-              <span className="sr-only">Aksi Data</span>
+            <Button variant="secondary" className="rounded-full h-14 w-44">
+              <FileSpreadsheet className="mr-2 h-4 w-4 text-[#008A15]" />
+              <span className="text-black">Mass Data</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="mb-2">
