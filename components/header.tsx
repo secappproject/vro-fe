@@ -58,10 +58,10 @@ export function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {/* <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuSeparator /> */}
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="mr-2 h-4 w-4 text-red-600" />
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

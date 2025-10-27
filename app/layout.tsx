@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           ) : (
             <div
               className={cn(
-                "grid min-h-screen w-full transition-[grid-template-columns] duration-300 ease-in-out",
+                "flex flex-col min-w-0 md:grid md:min-h-screen min-w-0 md:transition-[grid-template-columns] duration-300 ease-in-out",
                 isSidebarCollapsed ? "md:grid-cols-[72px_1fr]" : "md:grid-cols-[288px_1fr]"
               )}
             >

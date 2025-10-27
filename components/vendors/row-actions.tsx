@@ -13,22 +13,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Project, useAuthStore } from "@/lib/types"; 
-
-import { EditProjectModal } from "./edit-project-modal";
-import { DeleteProjectAlert } from "../reusable-datatable/delete-project-alert";
+import { Vendor } from "@/lib/types";
+import { DeleteVendorAlert } from "./delete-vendor-alert";
+import { EditVendorModal } from "./edit-vendor-modal";
 
 interface DataTableRowActionsProps {
-  project: Project;
+  vendor: Vendor;
+  onVendorUpdated: (updatedVendor: Vendor) => void;
+  onVendorDeleted: (vendorId: number) => void;
 }
 
-export function DataTableRowActions({ project }: DataTableRowActionsProps) {
-  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+export function VendorDataTableRowActions({
+  vendor,
+  onVendorUpdated,
+  onVendorDeleted,
+}: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-
-  const role = useAuthStore((state) => state.role);
-  const isAdmin = role === "Admin" || role === "admin";
 
   return (
     <>
@@ -42,33 +43,33 @@ export function DataTableRowActions({ project }: DataTableRowActionsProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
-
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Proyek
+            Edit Vendor
           </DropdownMenuItem>
-
-          {isAdmin && (
-            <DropdownMenuItem
-              className="text-red-600"
-              onSelect={() => setIsDeleteAlertOpen(true)}
-            >
-              Hapus Proyek
-            </DropdownMenuItem>
-          )}
-          
+          <DropdownMenuItem
+            className="text-red-600"
+            onSelect={() => setIsDeleteAlertOpen(true)}
+          >
+            Hapus Vendor
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <EditProjectModal project={project} setIsOpen={setIsEditModalOpen} />
+        <EditVendorModal
+          vendor={vendor}
+          setIsOpen={setIsEditModalOpen}
+          onVendorUpdated={onVendorUpdated}
+        />
       </Dialog>
       <AlertDialog
         open={isDeleteAlertOpen}
         onOpenChange={setIsDeleteAlertOpen}
       >
-        <DeleteProjectAlert
-          project={project}
+        <DeleteVendorAlert
+          vendor={vendor}
           setIsOpen={setIsDeleteAlertOpen}
+          onVendorDeleted={onVendorDeleted}
         />
       </AlertDialog>
     </>

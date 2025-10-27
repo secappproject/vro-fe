@@ -43,6 +43,27 @@ interface UserState {
   logout: () => void;
 }
 
+type NullString = {
+  String: string;
+  Valid: boolean;
+};
+
+export type User = {
+  id: number;
+  username: string;
+  role: string;
+  companyName: NullString | null;  
+  vendorType: NullString | null;  
+};
+
+export interface Vendor {
+  id: number;
+  companyName: string;
+  vendorType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const useAuthStore = create<UserState>()(
   persist(
     (set) => ({

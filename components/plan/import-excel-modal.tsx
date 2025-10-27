@@ -149,10 +149,6 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Impor Data dari Excel</DialogTitle>
-          {/* <DialogDescription className="font-light">
-            Pilih file .xlsx atau .xls. Pastikan kolom sesuai dengan template:
-            &quot;Project Name&quot;, &quot;WBS&quot;, &quot;Category&quot;, &quot;Plan Start&quot;, &quot;Qty&quot;, &quot;Vendor Panel&quot;, &quot;Vendor Busbar&quot;, &quot;Progress Panel&quot;, &quot;Status Busbar&quot;.
-          </DialogDescription> */}
         </DialogHeader>
         
         <div className="grid gap-4 py-4">

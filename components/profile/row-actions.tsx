@@ -1,4 +1,4 @@
-"use client";
+"use-client";
 
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
@@ -13,22 +13,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Project, useAuthStore } from "@/lib/types"; 
-
-import { EditProjectModal } from "./edit-project-modal";
-import { DeleteProjectAlert } from "../reusable-datatable/delete-project-alert";
+import { User, useAuthStore } from "@/lib/types";
+import { EditUserModal } from "./edit-user-modal";
+import { DeleteUserAlert } from "./delete-user-alert";
 
 interface DataTableRowActionsProps {
-  project: Project;
+  user: User;
+  onUserUpdated: (updatedUser: User) => void; 
+  onUserDeleted: (userId: number) => void;
 }
 
-export function DataTableRowActions({ project }: DataTableRowActionsProps) {
-  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+export function DataTableRowActions({
+  user,
+  onUserUpdated, 
+  onUserDeleted, 
+}: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const currentUser = useAuthStore((state) => state.username);
 
-  const role = useAuthStore((state) => state.role);
-  const isAdmin = role === "Admin" || role === "admin";
+  const isSelf = currentUser === user.username;
 
   return (
     <>
@@ -42,33 +46,34 @@ export function DataTableRowActions({ project }: DataTableRowActionsProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
-
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Proyek
+            Edit Pengguna
           </DropdownMenuItem>
-
-          {isAdmin && (
-            <DropdownMenuItem
-              className="text-red-600"
-              onSelect={() => setIsDeleteAlertOpen(true)}
-            >
-              Hapus Proyek
-            </DropdownMenuItem>
-          )}
-          
+          <DropdownMenuItem
+            className="text-red-600"
+            onSelect={() => setIsDeleteAlertOpen(true)}
+            disabled={isSelf}
+          >
+            Hapus Pengguna
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <EditProjectModal project={project} setIsOpen={setIsEditModalOpen} />
+        <EditUserModal
+          user={user}
+          setIsOpen={setIsEditModalOpen}
+          onUserUpdated={onUserUpdated}
+        />
       </Dialog>
       <AlertDialog
         open={isDeleteAlertOpen}
         onOpenChange={setIsDeleteAlertOpen}
       >
-        <DeleteProjectAlert
-          project={project}
+        <DeleteUserAlert
+          user={user}
           setIsOpen={setIsDeleteAlertOpen}
+          onUserDeleted={onUserDeleted} 
         />
       </AlertDialog>
     </>

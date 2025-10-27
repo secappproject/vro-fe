@@ -38,10 +38,12 @@ export default function PlanPage() {
     <div className="container mx-auto py-10">
       <h1 className="text-3xl mb-4">Project Plan</h1>
       <p className="text-muted-foreground mb-6 font-light">Daftar proyek yang sedang dalam tahap perencanaan.</p>
-      <PlanDataTable
-        columns={columns}
-        data={data}
-      />
+      <div className="overflow-x-auto">
+        <PlanDataTable
+          columns={columns}
+          data={data} 
+        />
+      </div>
     </div>
   );
 }
