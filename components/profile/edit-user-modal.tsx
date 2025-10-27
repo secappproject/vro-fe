@@ -26,6 +26,13 @@ interface EditUserModalProps {
   setIsOpen: (open: boolean) => void;
   onUserUpdated: (updatedUser: User) => void;
 }
+type UserUpdatePayload = {
+  username: string;
+  role: string;
+  companyName: { String: string; Valid: boolean } | null;
+  vendorType: { String: string; Valid: boolean } | null;
+  password?: string; 
+};
 
 export function EditUserModal({
   user,
@@ -110,7 +117,7 @@ export function EditUserModal({
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      const payload: any = {
+      const payload: UserUpdatePayload = {
         username,
         role: userRole,
         companyName: isVendor

@@ -25,7 +25,7 @@ export function DataTableColumnHeader<TData, TValue>({ column, title, className 
   const uniqueValues = Array.from(column.getFacetedUniqueValues().keys()).sort();
   const selectedValues = new Set(column.getFilterValue() as string[]);
 
-  const getDisplayValue = (val: any): string => {
+  const getDisplayValue = (val: unknown): string => {
     if (val === null || val === undefined) {
       return "(Kosong)";
     }
@@ -36,7 +36,7 @@ export function DataTableColumnHeader<TData, TValue>({ column, title, className 
     return String(val);
   };
 
-  const getKey = (val: any): string => {
+  const getKey = (val: unknown): string => {
     if (val === null) {
       return "__null_key__";
     }

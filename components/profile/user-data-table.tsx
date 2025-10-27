@@ -46,7 +46,7 @@ const getDisplayValueFromNullString = (val: NullString | null): string => {
   return val.String;
 };
 
-const isNullString = (value: any): value is NullString => {
+const isNullString = (value: unknown): value is NullString => {
   return (
     typeof value === "object" &&
     value !== null &&
