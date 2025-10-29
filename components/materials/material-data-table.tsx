@@ -183,7 +183,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
       row.getValue("totalBins"),
     ]);
 
-    const escapeCsvCell = (cell: any) => {
+    const escapeCsvCell = (cell: unknown) => {
       const str = String(cell ?? "");
       if (str.includes(",") || str.includes('"') || str.includes("\n")) {
         return `"${str.replace(/"/g, '""')}"`;
