@@ -21,7 +21,7 @@ export function AdminProfileView() {
       if (!role) return;
       setIsLoading(true);
       try {
-        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/users`;
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/users/`;
         const res = await fetch(apiUrl, {
           headers: {
             "X-User-Role": role,

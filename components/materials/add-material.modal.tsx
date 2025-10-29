@@ -89,7 +89,7 @@ export function AddMaterialModal({
       };
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/materials`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/materials/`,
         {
           method: "POST",
           headers: {

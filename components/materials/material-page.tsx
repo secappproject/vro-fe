@@ -33,7 +33,7 @@ export function MaterialPage() {
     if (!role) return;
     setIsLoading(true);
     try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/materials`;
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/materials/`;
       const res = await fetch(apiUrl, {
         headers: { "X-User-Role": role },
       });

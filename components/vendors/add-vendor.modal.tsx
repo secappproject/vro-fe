@@ -55,7 +55,7 @@ export function AddVendorModal({
       };
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/`,
         {
           method: "POST",
           headers: {
