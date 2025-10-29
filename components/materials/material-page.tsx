@@ -5,19 +5,21 @@ import { useRouter } from "next/navigation";
 import { Material, useAuthStore } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { PlusCircle, QrCode } from "lucide-react";
+import { PlusCircle, QrCode, Import } from "lucide-react";
 
 import { getMaterialColumns } from "@/components/materials/columns";
 import { MaterialDataTable } from "@/components/materials/material-data-table";
 import { MaterialAuthSkeleton } from "./material-skeleton";
 import { AddMaterialModal } from "./add-material.modal";
 import { AutoScanMaterialModal } from "./scan-material-modal";
+import { ImportMaterialModal } from "./import-material-modal";
 
 export function MaterialPage() {
   const [data, setData] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const role = useAuthStore((state) => state.role);
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
@@ -25,7 +27,7 @@ export function MaterialPage() {
   useEffect(() => {
     setIsClient(true);
     if (role && role !== "Admin") {
-      router.push("/"); 
+      router.push("/");
     }
   }, [role, router]);
 
@@ -75,7 +77,7 @@ export function MaterialPage() {
   };
 
   const handleScansSaved = () => {
-    getMaterialData(); 
+    getMaterialData();
   };
 
   const columns = getMaterialColumns(
@@ -99,11 +101,22 @@ export function MaterialPage() {
             Mengatur daftar master material, bin, dan kuantitas.
           </p>
         </div>
-        
+
         <div className="flex flex-col md:flex-row gap-2">
+          {role === "Admin" && (
+            <Button
+              variant="outline"
+              className="flex w-full md:w-auto"
+              onClick={() => setIsImportModalOpen(true)}
+            >
+              <Import className="mr-2 h-4 w-4" />
+              Import Massal
+            </Button>
+          )}
+
           <Button
             variant="outline"
-            className="flex w-full md:w-52"
+            className="flex w-full md:w-auto"
             onClick={() => setIsScanModalOpen(true)}
           >
             <QrCode className="mr-2 h-4 w-4" />
@@ -112,7 +125,7 @@ export function MaterialPage() {
 
           {role === "Admin" && (
             <Button
-              className="flex w-full md:w-52"
+              className="flex w-full md:w-auto"
               onClick={() => setIsAddModalOpen(true)}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -130,11 +143,18 @@ export function MaterialPage() {
           onMaterialAdded={handleMaterialAdded}
         />
       </Dialog>
-      
+
       <Dialog open={isScanModalOpen} onOpenChange={setIsScanModalOpen}>
         <AutoScanMaterialModal
           setIsOpen={setIsScanModalOpen}
           onScansSaved={handleScansSaved}
+        />
+      </Dialog>
+
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <ImportMaterialModal
+          setIsOpen={setIsImportModalOpen}
+          onImportSuccess={getMaterialData}
         />
       </Dialog>
     </div>

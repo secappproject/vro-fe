@@ -5,6 +5,7 @@ import {
   ColumnDef,
   SortingState,
   ColumnFiltersState,
+  VisibilityState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -24,17 +25,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Material } from "@/lib/types"; // Diubah
+import { Material } from "@/lib/types";
 import { Input } from "@/components/ui/input";
-import { X } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { UnfoldHorizontalIcon, X, Download } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 
-interface DataTableProps<TData extends Material, TValue> { // Diubah
+interface DataTableProps<TData extends Material, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
 }
 
-export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
+export function MaterialDataTable<TData extends Material, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
@@ -42,6 +58,15 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
+
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({
+      minBinQty: false,
+      packQuantity: false,
+      maxBinQty: false,
+      totalBins: false,
+    });
+
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [inputValue, setInputValue] = React.useState("");
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
@@ -66,6 +91,7 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
       sorting,
       columnFilters,
       globalFilter,
+      columnVisibility,
     },
     filterFns: {
       multiWord: multiWordFilterFn,
@@ -74,6 +100,7 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
@@ -81,6 +108,12 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  const minBinQtyColumn = table.getColumn("minBinQty");
+  const packQuantityColumn = table.getColumn("packQuantity");
+  const maxBinQtyColumn = table.getColumn("maxBinQty");
+  const totalBinsColumn = table.getColumn("totalBins");
+  const currentQuantityColumn = table.getColumn("currentQuantity");
 
   React.useEffect(() => {
     const chipsString = filterChips.join(" ");
@@ -115,6 +148,65 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
     setFilterChips([]);
     setInputValue("");
     table.setGlobalFilter(undefined);
+  };
+
+  const handleExtract = () => {
+    const rows = table.getRowModel().rows;
+    if (rows.length === 0) {
+      alert("Tidak ada data terfilter untuk diekstrak.");
+      return;
+    }
+
+    const headers = [
+      "Kode Material",
+      "Deskripsi",
+      "Stok Bin",
+      "Remark",
+      "Vendor",
+      "Lokasi",
+      "Min Qty",
+      "Pack Qty",
+      "Max Qty",
+      "Total Bins",
+    ];
+
+    const dataToExport = rows.map((row) => [
+      row.getValue("material"),
+      row.getValue("materialDescription"),
+      row.getValue("currentQuantity"),
+      row.getValue("remark"),
+      row.getValue("vendorCode"),
+      row.getValue("lokasi"),
+      row.getValue("minBinQty"),
+      row.getValue("packQuantity"),
+      row.getValue("maxBinQty"),
+      row.getValue("totalBins"),
+    ]);
+
+    const escapeCsvCell = (cell: any) => {
+      const str = String(cell ?? "");
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    let csvContent = headers.join(",") + "\n";
+    dataToExport.forEach((rowArray) => {
+      csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `material_extract_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -163,6 +255,87 @@ export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
             </div>
           )}
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto hidden h-9 lg:flex"
+            onClick={handleExtract}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Extract
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden h-9 lg:flex"
+              >
+                <UnfoldHorizontalIcon className="mr-2 h-4 w-4" />
+                View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px]">
+              <DropdownMenuLabel>Toggle kolom</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table
+                .getAllLeafColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {column.id
+                        .replace(/([A-Z])/g, " $1")
+                        .replace(/^./, (str) => str.toUpperCase())}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {currentQuantityColumn && (
+          <DataTableFacetedFilter
+            column={currentQuantityColumn}
+            title="Stok Bin"
+          />
+        )}
+        {minBinQtyColumn && (
+          <DataTableFacetedFilter
+            column={minBinQtyColumn}
+            title="Min Qty"
+          />
+        )}
+        {packQuantityColumn && (
+          <DataTableFacetedFilter
+            column={packQuantityColumn}
+            title="Pack Qty"
+          />
+        )}
+        {maxBinQtyColumn && (
+          <DataTableFacetedFilter
+            column={maxBinQtyColumn}
+            title="Max Qty"
+          />
+        )}
+        {totalBinsColumn && (
+          <DataTableFacetedFilter
+            column={totalBinsColumn}
+            title="Total Bins"
+          />
+        )}
       </div>
 
       <div className="rounded-md border">

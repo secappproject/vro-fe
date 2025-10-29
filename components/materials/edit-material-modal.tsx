@@ -43,6 +43,7 @@ export function EditMaterialModal({
 }: EditMaterialModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
+  const authUsername = useAuthStore((state) => state.username);
 
   const [materialCode, setMaterialCode] = useState(material.material);
   const [materialDescription, setMaterialDescription] = useState(
@@ -51,6 +52,9 @@ export function EditMaterialModal({
   const [location, setLocation] = useState(material.lokasi);
   const [vendorCode, setVendorCode] = useState(material.vendorCode);
 
+  const [currentQuantity, setCurrentQuantity] = useState(
+    String(material.currentQuantity)
+  );
   const [packQuantity, setPackQuantity] = useState(
     String(material.packQuantity)
   );
@@ -60,29 +64,55 @@ export function EditMaterialModal({
       : "0";
   const [totalBins, setTotalBins] = useState(initialTotalBins);
   const [minBinQty, setMinBinQty] = useState(String(material.minBinQty));
+  
+  const [pic, setPic] = useState(authUsername || "");
 
-  const { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty } = useMemo(() => {
-    const nPackQty = parseInt(packQuantity, 10) || 0;
-    const nTotalBins = parseInt(totalBins, 10) || 0;
-    const nMinBinQty = parseInt(minBinQty, 10) || 0;
-    const nMaxBinQty = nPackQty * nTotalBins;
-    return { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty };
-  }, [packQuantity, totalBins, minBinQty]);
+  const originalQuantity = useMemo(
+    () => String(material.currentQuantity),
+    [material.currentQuantity]
+  );
+  const stockHasChanged = currentQuantity !== originalQuantity;
+
+  const { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty, nCurrentQuantity } =
+    useMemo(() => {
+      const nPackQty = parseInt(packQuantity, 10) || 0;
+      const nTotalBins = parseInt(totalBins, 10) || 0;
+      const nMinBinQty = parseInt(minBinQty, 10) || 0;
+      const nMaxBinQty = nPackQty * nTotalBins;
+      const nCurrentQuantity = parseInt(currentQuantity, 10) || 0;
+      return { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty, nCurrentQuantity };
+    }, [packQuantity, totalBins, minBinQty, currentQuantity]);
 
   const handleSubmit = async () => {
+    if (stockHasChanged && !pic) {
+      alert("PIC (Nama Anda) wajib diisi karena Anda mengubah Current Stock.");
+      return;
+    }
+
     if (
       !materialCode ||
-      !vendorCode ||
       nPackQty <= 0 ||
       nTotalBins <= 0 ||
-      nMinBinQty < 0
+      nMinBinQty < 0 ||
+      nCurrentQuantity < 0
     ) {
-      alert("Semua field (kecuali deskripsi & lokasi) harus diisi dengan valid.");
+      alert(
+        "Semua field (kecuali deskripsi & lokasi) harus diisi dengan valid (>= 0)."
+      );
       return;
     }
 
     if (nMaxBinQty < nMinBinQty) {
-      alert("Max Bin Qty (Total Bins * Pack Qty) tidak boleh lebih kecil dari Min Bin Qty.");
+      alert(
+        "Max Bin Qty (Total Bins * Pack Qty) tidak boleh lebih kecil dari Min Bin Qty."
+      );
+      return;
+    }
+
+    if (nCurrentQuantity > nMaxBinQty) {
+      alert(
+        `Current Stock (${nCurrentQuantity}) tidak boleh melebihi Max Bin Qty (${nMaxBinQty}).`
+      );
       return;
     }
 
@@ -96,6 +126,8 @@ export function EditMaterialModal({
         maxBinQty: nMaxBinQty,
         minBinQty: nMinBinQty,
         vendorCode,
+        currentQuantity: nCurrentQuantity,
+        pic: pic, // Kirim PIC ke backend
       };
 
       const response = await fetch(
@@ -175,6 +207,37 @@ export function EditMaterialModal({
             placeholder="(Opsional)"
           />
         </div>
+        <div className="grid grid-cols-4 items-center gap-4 mb-4">
+          <Label htmlFor="currentStock" className="text-left">
+            Current Stock
+          </Label>
+          <Input
+            id="currentStock"
+            type="number"
+            value={currentQuantity}
+            onChange={(e) => setCurrentQuantity(e.target.value)}
+            className={`col-span-3 ${
+              stockHasChanged
+                ? "border-destructive focus-visible:ring-destructive"
+                : ""
+            }`}
+          />
+        </div>
+        
+        <div className="grid grid-cols-4 items-center gap-4 mb-4">
+          <Label htmlFor="pic" className="text-left">
+            PIC
+          </Label>
+          <Input
+            id="pic"
+            value={pic}
+            onChange={(e) => setPic(e.target.value)}
+            className={`col-span-3 ${
+              stockHasChanged && !pic ? "border-destructive" : ""
+            }`}
+            placeholder="Nama Anda (Wajib jika stok berubah)"
+          />
+        </div>
 
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -210,15 +273,18 @@ export function EditMaterialModal({
         </div>
 
         <div className="col-span-4 rounded-md border p-4 my-2">
-          <Label className="text-xs text-muted-foreground">Preview Konfigurasi Bin</Label>
+          <Label className="text-xs text-muted-foreground">
+            Preview Konfigurasi Bin
+          </Label>
           <p className="text-xs text-muted-foreground mb-3">
-            Max Qty: <span className="font-bold text-primary">{nMaxBinQty}</span> (Otomatis dari {nTotalBins} bin x {nPackQty} pcs)
+            Max Qty: <span className="font-bold text-primary">{nMaxBinQty}</span>{" "}
+            (Otomatis dari {nTotalBins} bin x {nPackQty} pcs)
           </p>
           <BinPreview
             packQuantity={nPackQty}
             maxBinQty={nMaxBinQty}
             minBinQty={nMinBinQty}
-            currentQuantity={material.currentQuantity}
+            currentQuantity={nCurrentQuantity}
           />
         </div>
 
