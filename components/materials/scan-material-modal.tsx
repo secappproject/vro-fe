@@ -287,7 +287,7 @@ export function AutoScanMaterialModal({
         <DialogTitle>Scan Stok (Otomatis IN/OUT)</DialogTitle>
         <DialogDescription>
           Scan material. Status akan divalidasi otomatis secara berurutan.
-          Tekan 'Tab' di baris terakhir untuk menambah baris baru.
+          Tekan "Tab" di baris terakhir untuk menambah baris baru.
         </DialogDescription>
       </DialogHeader>
 
