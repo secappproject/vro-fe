@@ -486,7 +486,7 @@ export function AutoScanMaterialModal({
       <DialogHeader>
         <DialogTitle>Scan Stok (Auto IN/OUT)</DialogTitle>
         <DialogDescription>
-          Scan material (misal: "MAT-001_IN" atau "MAT-001"). 
+          Scan material (misal: MAT-001_IN atau MAT-001). 
           Jika suffix (_IN/_OUT) tidak ada, pergerakan akan diprediksi otomatis.
         </DialogDescription>
       </DialogHeader>

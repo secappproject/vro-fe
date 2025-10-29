@@ -292,8 +292,8 @@ export function ImportMaterialModal({
       <DialogHeader>
         <DialogTitle>Impor Massal Material</DialogTitle>
         <DialogDescription>
-          Upload file CSV dengan data material baru. Header wajib: "Kode
-          Material", "Pack Qty", "Max Qty", "Min Qty", "Vendor".
+          Upload file CSV dengan data material baru. Header yang perlu diisi: Kode
+          Material, Pack Qty, Max Qty, Min Qty.
         </DialogDescription>
       </DialogHeader>
 
