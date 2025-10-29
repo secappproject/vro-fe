@@ -19,17 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { X, PlusCircle, MoreVertical, Upload, Download, FileUp, FileSpreadsheet } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
-import { Dialog } from "@/components/ui/dialog";
-import { Project, useAuthStore } from "@/lib/types";
-import * as XLSX from "xlsx";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 
 interface DataTableProps<TData, TValue> {
@@ -47,7 +37,7 @@ const statusFilterColumnIds = [
 ];
 
 
-export function DataTable<TData extends Project, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -141,8 +131,6 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
   };
 
   const isFiltered = filterChips.length > 0 || table.getState().columnFilters.length > 0 || activeStatusFilter !== null;
-  
-  const filteredDataForExport = table.getFilteredRowModel().rows.map(row => row.original) as Project[];
 
 
   return (
