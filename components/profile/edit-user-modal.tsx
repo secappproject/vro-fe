@@ -88,7 +88,7 @@ export function EditUserModal({
         }
 
         const typeRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/vendor-types`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/vendor-type`,
           { headers }
         );
         if (typeRes.ok) {
