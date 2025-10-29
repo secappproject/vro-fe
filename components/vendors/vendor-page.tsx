@@ -34,7 +34,7 @@ export function VendorPage() {
       if (role !== "Admin") return;
       setIsLoading(true);
       try {
-        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/`;
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/vendors`;
         const res = await fetch(apiUrl, {
           headers: {
             "X-User-Role": role,
