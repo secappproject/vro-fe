@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Truck, PackageCheck, User, PencilRuler, Building2, WatchIcon, CalendarArrowDown } from "lucide-react";
+import { LayoutGrid, Truck, PackageCheck, User, PencilRuler, Building2, WatchIcon, CalendarArrowDown, ToolCase } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/lib/types";
 
@@ -16,10 +16,9 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
   const { username, role, companyName } = useAuthStore();
 
   const allNavLinks = [
-    { href: "/plan", label: "Plan", icon: PencilRuler, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
+    { href: "/materials", label: "Material", icon: ToolCase, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
     { href: "/vendors", label: "Vendor", icon: Building2, allowedRoles: ['Admin'] },
     { href: "/profile", label: "User", icon: User, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
-
   ];
 
   const navLinks = allNavLinks.filter(link => role && link.allowedRoles.includes(role));

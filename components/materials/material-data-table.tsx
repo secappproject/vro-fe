@@ -3,8 +3,8 @@
 import * as React from "react";
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
+  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -15,45 +15,35 @@ import {
   useReactTable,
   FilterFn,
 } from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-import { X, PlusCircle, MoreVertical, Upload, Download, FileUp, FileSpreadsheet } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
-import { Dialog } from "@/components/ui/dialog";
-import { Project, useAuthStore } from "@/lib/types";
-import * as XLSX from "xlsx";
-import { cn } from "@/lib/utils"; 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Material } from "@/lib/types"; // Diubah
+import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends Material, TValue> { // Diubah
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
 }
 
-type DeliveryStatus = "On Track" | "Need Delivery" | "Late";
-const deliveryStatuses: DeliveryStatus[] = ["On Track", "Need Delivery", "Late"];
-const statusFilterColumnIds = [
-    "planDeliveryBasicKitPanel",
-    "planDeliveryBasicKitBusbar",
-    "planDeliveryAccessoriesPanel",
-    "planDeliveryAccessoriesBusbar"
-];
-
-
-export function DataTable<TData extends Project, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+export function MaterialDataTable<TData extends Material, TValue>({ // Diubah
+  columns,
+  data,
+}: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [inputValue, setInputValue] = React.useState("");
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
-  const [activeStatusFilter, setActiveStatusFilter] = React.useState<DeliveryStatus | null>(null);
 
   const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
     const filterWords = String(filterValue).toLowerCase().split(" ").filter(Boolean);
@@ -68,7 +58,6 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
     return filterWords.every((word) => rowText.includes(word));
   };
 
-
   const table = useReactTable<TData>({
     data,
     columns,
@@ -77,41 +66,29 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
       columnFilters,
       globalFilter,
     },
-    initialState: {
-      columnVisibility: {
-        derivedDeliveryStatus: false, 
-      },
-    },
     filterFns: {
       multiWord: multiWordFilterFn,
     },
     globalFilterFn: multiWordFilterFn,
+    onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   React.useEffect(() => {
     const chipsString = filterChips.join(" ");
     const liveInputString = inputValue.trim().toLowerCase();
-    const combinedFilter = [chipsString, liveInputString].filter(Boolean).join(" ");
+    const combinedFilter = [chipsString, liveInputString]
+      .filter(Boolean)
+      .join(" ");
     table.setGlobalFilter(combinedFilter);
   }, [filterChips, inputValue, table]);
-
-  const handleStatusFilterClick = (status: DeliveryStatus | null) => {
-    const newStatus = activeStatusFilter === status ? null : status;
-    setActiveStatusFilter(newStatus);
-
-    statusFilterColumnIds.forEach(columnId => {
-        table.getColumn(columnId)?.setFilterValue(newStatus ? [newStatus] : undefined); 
-    });
-  };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const newChip = inputValue.trim().toLowerCase();
@@ -129,38 +106,39 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
     setFilterChips((prev) => prev.filter((chip) => chip !== chipToRemove));
   };
 
+  const isFiltered =
+    filterChips.length > 0 || table.getState().columnFilters.length > 0;
+
   const resetFilters = () => {
-    setActiveStatusFilter(null);
-    statusFilterColumnIds.forEach(columnId => {
-        table.getColumn(columnId)?.setFilterValue(undefined);
-    });
-    table.resetColumnFilters(); 
+    table.resetColumnFilters();
     setFilterChips([]);
     setInputValue("");
-    table.setGlobalFilter(undefined); 
+    table.setGlobalFilter(undefined);
   };
 
-  const isFiltered = filterChips.length > 0 || table.getState().columnFilters.length > 0 || activeStatusFilter !== null;
-  
-  const filteredDataForExport = table.getFilteredRowModel().rows.map(row => row.original) as Project[];
-
-
   return (
-    <div className="space-y-4 pb-24 md:pb-4">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2 w-full max-w-lg">
           <div className="flex items-center gap-2">
             <Input
               type="text"
-              placeholder={filterChips.length === 0 ? "Cari, lalu tekan Enter..." : "Tambah filter..."}
+              placeholder={
+                filterChips.length === 0
+                  ? "Cari, lalu tekan Enter..."
+                  : "Tambah filter..."
+              }
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               className="flex-grow"
             />
             {isFiltered && (
-              <Button variant="ghost" onClick={resetFilters} className="h-9 px-2 lg:px-3">
+              <Button
+                variant="ghost"
+                onClick={resetFilters}
+                className="h-9 px-2 lg:px-3"
+              >
                 Reset <X className="ml-2 h-4 w-4" />
               </Button>
             )}
@@ -173,44 +151,32 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
                   className="flex items-center gap-1 bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-sm"
                 >
                   <span>{chip}</span>
-                  <button onClick={() => removeChip(chip)} className="rounded-full hover:bg-muted/50">
+                  <button
+                    onClick={() => removeChip(chip)}
+                    className="rounded-full hover:bg-muted/50"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-sm text-muted-foreground mr-1">Status:</span>
-            {deliveryStatuses.map((status) => (
-              <Button
-                key={status}
-                variant={activeStatusFilter === status ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  "h-7 px-2.5 text-xs rounded-full",
-                  status === "On Track" && activeStatusFilter === status && "bg-green-100 text-green-800 border-green-200 hover:bg-green-200",
-                  status === "Need Delivery" && activeStatusFilter === status && "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200",
-                  status === "Late" && activeStatusFilter === status && "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
-                )}
-                onClick={() => handleStatusFilterClick(status)}
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
         </div>
-
       </div>
 
-       <div className="rounded-md border">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -219,17 +185,26 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell className="font-light" key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center font-light">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center font-light"
+                >
                   Tidak ada data.
                 </TableCell>
               </TableRow>
@@ -237,12 +212,21 @@ export function DataTable<TData extends Project, TValue>({ columns, data }: Data
           </TableBody>
         </Table>
       </div>
-
       <div className="flex items-center justify-end space-x-2">
-        <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
           Previous
         </Button>
-        <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
           Next
         </Button>
       </div>

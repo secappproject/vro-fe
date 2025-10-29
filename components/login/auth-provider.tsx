@@ -14,7 +14,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       router.replace('/login');
     }
     else if (isLoggedIn && pathname === '/login') {
-         router.replace('/plan');
+         router.replace('/');
     }
   }, [isLoggedIn, pathname, router]);
 

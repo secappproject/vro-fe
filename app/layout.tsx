@@ -3,11 +3,11 @@
 import "./globals.css"
 import { Lexend, JetBrains_Mono } from "next/font/google"
 import { cn } from "@/lib/utils"
-import { Sidebar } from "@/components/sidebar"
-import { Header } from "@/components/header"
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import AuthProvider from "@/components/auth-provider";
+import AuthProvider from "@/components/login/auth-provider";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
 
 const lexend = Lexend({
   subsets: ["latin"],

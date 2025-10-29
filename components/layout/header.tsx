@@ -23,11 +23,9 @@ export function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProps) {
   const { logout, username } = useAuthStore(); 
 
   const getPageTitle = () => {
-    if (pathname.startsWith("/dashboard")) return "Dashboard";
-    if (pathname.startsWith("/delivery-panel-busbar")) return "Delivery Panel/Busbar";
-    if (pathname.startsWith("/delivery-accessories")) return "Delivery Accessories";
-    if (pathname.startsWith("/plan")) return "Project Plan";
     if (pathname.startsWith("/profile")) return "Profil";
+    if (pathname.startsWith("/vendors")) return "Vendors";
+    if (pathname.startsWith("/materials")) return "Materials";
     return "Project Tracker";
   };
 

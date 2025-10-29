@@ -13,22 +13,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Project, useAuthStore } from "@/lib/types"; 
-
-import { EditProjectModal } from "./edit-project-modal";
-import { DeleteProjectAlert } from "../reusable-datatable/delete-project-alert";
+import { Material } from "@/lib/types"; // Diubah
+import { DeleteMaterialAlert } from "./delete-material-alert";
+import { EditMaterialModal } from "./edit-material-modal";
 
 interface DataTableRowActionsProps {
-  project: Project;
+  material: Material; // Diubah
+  onMaterialUpdated: (updatedMaterial: Material) => void; // Diubah
+  onMaterialDeleted: (materialId: number) => void; // Diubah
 }
 
-export function DataTableRowActions({ project }: DataTableRowActionsProps) {
-  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+export function MaterialDataTableRowActions({ // Diubah
+  material,
+  onMaterialUpdated,
+  onMaterialDeleted,
+}: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-
-  const role = useAuthStore((state) => state.role);
-  const isAdmin = role === "Admin" || role === "admin";
 
   return (
     <>
@@ -42,33 +43,33 @@ export function DataTableRowActions({ project }: DataTableRowActionsProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
-
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Proyek
+            Edit Material
           </DropdownMenuItem>
-
-          {isAdmin && (
-            <DropdownMenuItem
-              className="text-red-600"
-              onSelect={() => setIsDeleteAlertOpen(true)}
-            >
-              Hapus Proyek
-            </DropdownMenuItem>
-          )}
-          
+          <DropdownMenuItem
+            className="text-red-600"
+            onSelect={() => setIsDeleteAlertOpen(true)}
+          >
+            Hapus Material
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <EditProjectModal project={project} setIsOpen={setIsEditModalOpen} />
+        <EditMaterialModal
+          material={material}
+          setIsOpen={setIsEditModalOpen}
+          onMaterialUpdated={onMaterialUpdated}
+        />
       </Dialog>
       <AlertDialog
         open={isDeleteAlertOpen}
         onOpenChange={setIsDeleteAlertOpen}
       >
-        <DeleteProjectAlert
-          project={project}
+        <DeleteMaterialAlert
+          material={material}
           setIsOpen={setIsDeleteAlertOpen}
+          onMaterialDeleted={onMaterialDeleted}
         />
       </AlertDialog>
     </>

@@ -60,7 +60,7 @@ export function LoginForm() {
         companyName: data.companyName,
         vendorType: data.vendorType, 
       });
-      router.push("/plan");
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {

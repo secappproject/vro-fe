@@ -1,33 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-export interface Project {
-  id: number;
-  projectName: string;
-  wbs: string;
-  category: "PIX" | "MCZ";
-  quantity: number;
-  vendorPanel: string;
-  vendorBusbar: string;
-  panelProgress: number;
-  statusBusbar: "Punching/Bending" | "Plating" | "Heatshrink" | "Done";
-  createdAt: string;
-  updatedAt: string;
-
-  planStart: string;
-  fatStart: string | null;
-
-  planDeliveryBasicKitPanel: string | null;
-  planDeliveryBasicKitBusbar: string | null;
-  actualDeliveryBasicKitPanel: string | null;
-  actualDeliveryBasicKitBusbar: string | null;
-
-  planDeliveryAccessoriesPanel: string | null;
-  planDeliveryAccessoriesBusbar: string | null;
-  actualDeliveryAccessoriesPanel: string | null;
-  actualDeliveryAccessoriesBusbar: string | null;
-}
-
 interface UserState {
   username: string | null;
   role: string | null;
@@ -62,6 +35,17 @@ export interface Vendor {
   vendorType: string;
   createdAt: string;
   updatedAt: string;
+}
+export interface Material {
+  id: number;
+  material: string;
+  materialDescription: string;
+  lokasi: string; 
+  packQuantity: number;
+  maxBinQty: number;
+  minBinQty: number;
+  vendorCode: string;
+  currentQuantity: number;
 }
 
 export const useAuthStore = create<UserState>()(

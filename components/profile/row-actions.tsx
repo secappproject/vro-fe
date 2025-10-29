@@ -14,8 +14,8 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { User, useAuthStore } from "@/lib/types";
-import { EditUserModal } from "./edit-user-modal";
 import { DeleteUserAlert } from "./delete-user-alert";
+import { EditUserModal } from "./edit-user-modal";
 
 interface DataTableRowActionsProps {
   user: User;
