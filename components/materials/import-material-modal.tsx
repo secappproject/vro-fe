@@ -20,6 +20,15 @@ interface ImportMaterialModalProps {
   setIsOpen: (open: boolean) => void;
   onImportSuccess: () => void;
 }
+interface MaterialPayload {
+  material: string;
+  materialDescription: string;
+  lokasi: string;
+  packQuantity: number;
+  maxBinQty: number;
+  minBinQty: number;
+  vendorCode: string;
+}
 
 interface ValidationRow {
   rowNum: number;
@@ -49,7 +58,7 @@ export function ImportMaterialModal({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationRows, setValidationRows] = useState<ValidationRow[]>([]);
-  const [validPayloads, setValidPayloads] = useState<any[]>([]);
+  const [validPayloads, setValidPayloads] = useState<MaterialPayload[]>([]);
   const authRole = useAuthStore((state) => state.role);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -151,7 +160,7 @@ export function ImportMaterialModal({
         }
 
         const valErrs: ValidationRow[] = [];
-        const valPayloads: any[] = [];
+        const valPayloads: MaterialPayload[] = [];
 
         for (let i = 0; i < data.length; i++) {
           const row = data[i];
