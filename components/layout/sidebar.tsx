@@ -16,7 +16,7 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
   const { username, role, companyName } = useAuthStore();
 
   const allNavLinks = [
-    { href: "/materials", label: "Material", icon: ToolCase, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
+    { href: "/materials", label: "Rpl. Stock Monitoring", icon: ToolCase, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
     { href: "/vendors", label: "Vendor", icon: Building2, allowedRoles: ['Admin'] },
     { href: "/profile", label: "User", icon: User, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
   ];

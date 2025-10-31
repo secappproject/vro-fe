@@ -96,9 +96,9 @@ export function MaterialPage() {
     <div className="container mx-auto py-10">
       <div className="md:flex md:justify-between md:items-center mb-4">
         <div className="mb-4 md:mb-0">
-          <h1 className="text-3xl">Manajemen Material</h1>
+          <h1 className="text-3xl">Replenishment Stock Monitoring</h1>
           <p className="text-muted-foreground font-light mt-1">
-            Mengatur daftar master material, bin, dan kuantitas.
+            Vendor Managed Inventory (VMI)
           </p>
         </div>
 
