@@ -22,7 +22,6 @@ import { Material, useAuthStore } from "@/lib/types";
 import { BinPreview } from "./bin-preview";
 import { Wand2 } from "lucide-react";
 
-// ... (Interface, consts, roundUpToPack, FormErrors... tidak berubah) ...
 interface AddMaterialModalProps {
   setIsOpen: (open: boolean) => void;
   onMaterialAdded: (newMaterial: Material) => void;
@@ -46,18 +45,18 @@ interface FormErrors {
   materialCode?: string;
   vendorCode?: string;
   packQuantity?: string;
-  quantityPerBin?: string; // Input error for Consumable/Option
-  maxBinQty?: string; // Input error for Kanban
-  totalBins?: string; // Input error for Consumable/Option
-  minBinQty?: string; // Input error for Option
+  quantityPerBin?: string;
+  maxBinQty?: string;
+  totalBins?: string;
+  minBinQty?: string;
   general?: string;
+  vendorStock?: string; // <-- Tambah
 }
 
 export function AddMaterialModal({
   setIsOpen,
   onMaterialAdded,
 }: AddMaterialModalProps) {
-  // ... (State, useMemo... tidak berubah) ...
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
 
@@ -69,11 +68,12 @@ export function AddMaterialModal({
     "kanban" | "consumable" | "option"
   >("kanban");
 
-  const [packQuantity, setPackQuantity] = useState(""); // Input Pack (All)
-  const [quantityPerBin, setQuantityPerBin] = useState(""); // Input Qty per Bin (Consumable/Option)
-  const [maxBinQty, setMaxBinQty] = useState(""); // Input Max (Kanban)
-  const [minBinQty, setMinBinQty] = useState(""); // Input Min (Option)
-  const [totalBins, setTotalBins] = useState(""); // Input Bins (Consumable/Option)
+  const [packQuantity, setPackQuantity] = useState("");
+  const [quantityPerBin, setQuantityPerBin] = useState("");
+  const [maxBinQty, setMaxBinQty] = useState("");
+  const [minBinQty, setMinBinQty] = useState("");
+  const [totalBins, setTotalBins] = useState("");
+  const [vendorStock, setVendorStock] = useState("0"); // <-- Tambah state
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [showKelipatanError, setShowKelipatanError] = useState(false);
@@ -93,29 +93,25 @@ export function AddMaterialModal({
     let nQuantityPerBinMemo = 0;
 
     if (productType === "kanban") {
-      // Input: max, pack.
       const initialMaxBinQty = parseInt(maxBinQty, 10) || 0;
       nMaxBinQty = roundUpToPack(initialMaxBinQty, nPackQty);
-      nMinBinQty = nPackQty; // Rule 1: min == pack
-      nQuantityPerBinMemo = nPackQty; // Rule 1: quantity perbin == pack
+      nMinBinQty = nPackQty;
+      nQuantityPerBinMemo = nPackQty;
       nTotalBinsMemo =
         nQuantityPerBinMemo > 0
           ? Math.ceil(nMaxBinQty / nQuantityPerBinMemo)
-          : 0; // Rule 1: bin = max/min (max/pack)
+          : 0;
     } else if (productType === "consumable") {
-      // Input: bin, pack, quantity perbin
       nTotalBinsMemo = parseInt(totalBins, 10) || 0;
       nQuantityPerBinMemo = parseInt(quantityPerBin, 10) || 0;
-      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo; // Rule 2: max = bin * qty_per_bin
-      nMinBinQty = nPackQty; // Rule 2: min == pack
+      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
+      nMinBinQty = nPackQty;
     } else {
-      // "option"
-      // Input: min, bin, pack, quantity perbin
       const initialMinBinQty = parseInt(minBinQty, 10) || 0;
       nTotalBinsMemo = parseInt(totalBins, 10) || 0;
       nQuantityPerBinMemo = parseInt(quantityPerBin, 10) || 0;
-      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo; // Rule 3: max = bin * qty_per_bin
-      nMinBinQty = roundUpToPack(initialMinBinQty, nPackQty); // Rule 3: Input min (rounded to pack)
+      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
+      nMinBinQty = roundUpToPack(initialMinBinQty, nPackQty);
     }
 
     return {
@@ -133,23 +129,23 @@ export function AddMaterialModal({
     totalBins,
     productType,
   ]);
-  
-  // --- TAMBAHAN: useMemo untuk Replenishment ---
+
+  const nVendorStock = useMemo(() => parseInt(vendorStock, 10) || 0, [
+    vendorStock,
+  ]); // <-- Tambah memo
+
   const replenishment = useMemo(() => {
-    const soh = 0; // Stok selalu 0 saat add
+    const soh = 0;
     const totalBins = nTotalBinsMemo;
     const qtyPerBin = nQuantityPerBinMemo;
 
     if (qtyPerBin <= 0) return 0;
     
-    // Rumus: ROUNDDOWN(bin - (soh / qty perbin), 0)
     const calc = Math.floor(totalBins - (soh / qtyPerBin));
     return calc < 0 ? 0 : calc;
   }, [nTotalBinsMemo, nQuantityPerBinMemo]);
-  // ------------------------------------------
 
   const previewMaterial = useMemo((): Material => {
-    // ... (logika previewMaterial tidak berubah) ...
     return {
       id: 0,
       material: materialCode,
@@ -161,6 +157,7 @@ export function AddMaterialModal({
       maxBinQty: nMaxBinQty,
       minBinQty: nMinBinQty,
       currentQuantity: 0,
+      vendorStock: nVendorStock, // <-- Tambah
       bins:
         productType !== "kanban"
           ? Array.from({ length: nTotalBinsMemo }, (_, i) => ({
@@ -183,17 +180,16 @@ export function AddMaterialModal({
     nMinBinQty,
     nTotalBinsMemo,
     nQuantityPerBinMemo,
+    nVendorStock, // <-- Tambah
   ]);
 
   const clearError = (field: keyof FormErrors) => {
-    // ... (logika clearError tidak berubah) ...
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
   const autoFixKelipatan = () => {
-    // ... (logika autoFixKelipatan tidak berubah) ...
     if (
       productType === "kanban" ||
       nTotalBinsMemo <= 0 ||
@@ -217,7 +213,6 @@ export function AddMaterialModal({
   };
   
   const validate = (): boolean => {
-    // ... (logika validate tidak berubah, sudah ada validasi Qty/Bin >= PackQty) ...
     setShowKelipatanError(false); 
     const newErrors: FormErrors = {};
 
@@ -229,6 +224,10 @@ export function AddMaterialModal({
     }
     if (nPackQty <= 0) {
       newErrors.packQuantity = "Pack Qty harus > 0.";
+    }
+
+    if (nVendorStock < 0) { // <-- Tambah
+      newErrors.vendorStock = "Vendor Stock tidak boleh negatif.";
     }
 
     if (productType === "kanban") {
@@ -280,7 +279,6 @@ export function AddMaterialModal({
   };
 
   const handleSubmit = async () => {
-    // ... (logika handleSubmit tidak berubah) ...
     setErrors({});
     if (!validate()) {
       return;
@@ -296,6 +294,7 @@ export function AddMaterialModal({
         maxBinQty: nMaxBinQty,
         minBinQty: nMinBinQty,
         vendorCode,
+        vendorStock: nVendorStock, // <-- Tambah
         productType: productType,
         bins: previewMaterial.bins,
       };
@@ -337,7 +336,6 @@ export function AddMaterialModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        {/* ... (Header tidak berubah) ... */}
         <DialogTitle>Tambah Material Baru</DialogTitle>
         <DialogDescription>
           Isi detail material, konfigurasi bin, dan vendor di bawah ini.
@@ -345,8 +343,7 @@ export function AddMaterialModal({
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-        {/* ... (Semua input form tidak berubah) ... */}
-        {/* (Saya singkat) */}
+        {/* ... (Input form: Kode, Deskripsi, Lokasi, Tipe) ... */}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
@@ -412,6 +409,8 @@ export function AddMaterialModal({
             </SelectContent>
           </Select>
         </div>
+
+        {/* ... (Input form: Pack Qty, Max, Total Bins, Qty/Bin, Min Qty) ... */}
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -518,7 +517,6 @@ export function AddMaterialModal({
           )}
         </div>
 
-
         <div className="col-span-4 rounded-md border p-4 my-2">
           <Label className="text-xs text-muted-foreground">
             Preview Konfigurasi Bin
@@ -529,13 +527,11 @@ export function AddMaterialModal({
             Qty (Final):{" "}
             <span className="font-bold text-primary">{nMinBinQty}</span>
           </p>
-          {/* --- BARIS BARU DITAMBAHKAN DI SINI --- */}
           <p className="text-xs text-muted-foreground mb-3">
             Replenishment:{" "}
             <span className="font-bold text-primary">{replenishment}</span> bin
             (SOH: 0)
           </p>
-          {/* ------------------------------------ */}
           <p className="text-xs text-muted-foreground mb-3">
             Total{" "}
             <span className="font-bold text-primary">{nTotalBinsMemo}</span> bin
@@ -548,7 +544,6 @@ export function AddMaterialModal({
           <BinPreview material={previewMaterial} />
         </div>
 
-        {/* ... (Blok Error, Vendor... tidak berubah) ... */}
         {errors.general && (
           <div className="col-span-4 my-2 text-sm text-destructive text-center p-2 bg-destructive/10 rounded-md">
             <p>{errors.general}</p>
@@ -566,6 +561,7 @@ export function AddMaterialModal({
             )}
           </div>
         )}
+
         <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
           <Label htmlFor="vendorCode" className="text-left pt-2">
             Vendor
@@ -598,10 +594,38 @@ export function AddMaterialModal({
             )}
           </div>
         </div>
+
+        {/* --- INPUT BARU VENDOR STOCK --- */}
+        <div className="grid grid-cols-4 items-start gap-4 mt-4">
+          <Label htmlFor="vendorStock" className="text-left pt-2">
+            Vendor Stock
+          </Label>
+          <div className="col-span-3">
+            <Input
+              id="vendorStock"
+              type="number"
+              value={vendorStock}
+              onChange={(e) => {
+                setVendorStock(e.target.value);
+                clearError("vendorStock");
+              }}
+              placeholder="Stok awal vendor"
+              className={errors.vendorStock ? "border-destructive" : ""}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Stok yang dimiliki vendor (untuk replenishment).
+            </p>
+            {errors.vendorStock && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.vendorStock}
+              </p>
+            )}
+          </div>
+        </div>
+        {/* --------------------------- */}
       </div>
 
       <DialogFooter>
-        {/* ... (Footer tidak berubah) ... */}
         <Button variant="outline" onClick={() => setIsOpen(false)}>
           Batal
         </Button>

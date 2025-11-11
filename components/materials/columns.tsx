@@ -60,7 +60,7 @@ export const getMaterialColumns = (
     enableHiding: false,
   },
   {
-    id: "currentQuantity",
+    id: "currentQuantity", 
     accessorFn: (row) => row.currentQuantity,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Stok Bin" />
@@ -176,6 +176,17 @@ export const getMaterialColumns = (
       <DataTableColumnHeader column={column} title="Lokasi" />
     ),
     enableColumnFilter: true,
+  },
+  {
+    accessorKey: "vendorStock",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Vendor Stock" />
+    ),
+    cell: ({ row }) => {
+      const stock = row.getValue("vendorStock") as number | null;
+      return <span>{stock ?? 0}</span>;
+    },
+    enableSorting: true,
   },
   {
     accessorKey: "pic",

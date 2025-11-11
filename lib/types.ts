@@ -55,6 +55,7 @@ export interface Material {
   vendorCode: string;
   currentQuantity: number;
   pic?: string;
+  vendorStock?: number;
   productType: 'kanban' | 'consumable' | 'option';
   bins?: MaterialBin[]; 
 }
@@ -67,6 +68,7 @@ export interface MaterialStatusResponse {
   productType: "kanban" | "consumable" | "option";
   quantityPerBin: number; 
   bins: MaterialBin[] | null; 
+  vendorStock: number;
 }
 
 export const useAuthStore = create<UserState>()(
