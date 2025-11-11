@@ -335,11 +335,15 @@ export function AutoScanMaterialModal({
           }
 
           const { productType, packQuantity, maxBinQty, quantityPerBin } = baseData;
-          let parsed = scan.parsed;
+          // --- PERBAIKAN DI SINI ---
+          const parsed = scan.parsed;
           let rowError: string | null = parsed.error;
 
-          let predictedMovement = parsed.movement;
-          let predictedBinId = parsed.binId;
+          // State default per baris
+          const predictedMovement = parsed.movement;
+          const predictedBinId = parsed.binId;
+          // ---------------------------
+          
           let predictedQtyPcs: number | null = null;
           let inputQty: string = scan.inputQty; // Ambil dari state (default 1)
           let showQtyInput: boolean = false;
@@ -352,11 +356,10 @@ export function AutoScanMaterialModal({
               finalRawScan = scan.rawScan;
             
             } else if (parsed.format === "OUT_DEFAULT") {
-              // Jika inputQty masih "1" (default), set ulang
               if (scan.inputQty === "1") inputQty = "1"; 
               
               if (productType === "kanban") {
-                predictedQtyPcs = quantityPerBin; // (qtyPerBin == packQuantity)
+                predictedQtyPcs = quantityPerBin; 
                 finalRawScan = scan.rawScan;
               } else if (productType === "consumable") {
                 showQtyInput = true;
@@ -371,7 +374,7 @@ export function AutoScanMaterialModal({
               }
             } else if (parsed.format === "OUT_EXPLICIT") {
               const explicitQty = parsed.quantity!;
-              inputQty = String(explicitQty); // Set inputQty dari scan
+              inputQty = String(explicitQty);
               finalRawScan = scan.rawScan;
               
               if (productType === "kanban") {
@@ -388,7 +391,6 @@ export function AutoScanMaterialModal({
             }
           }
 
-          // --- Kalkulasi & Validasi Stok Berjalan (DENGAN BIN) ---
           let newTotalQuantity = runningQuantity;
           if (!rowError && predictedQtyPcs !== null && predictedBinId !== null) {
             if (predictedMovement === "IN") {
@@ -404,7 +406,6 @@ export function AutoScanMaterialModal({
                 if (newTotalQuantity > maxBinQty) {
                   rowError = `Stok melebihi Max (${newTotalQuantity} / ${maxBinQty})`;
                 } else {
-                  // Sukses: Update simulasi
                   runningQuantity = newTotalQuantity;
                   if (productType !== "kanban") {
                     simulatedBins.set(predictedBinId, predictedQtyPcs);
@@ -417,7 +418,7 @@ export function AutoScanMaterialModal({
                  if (newTotalQuantity < 0) {
                    rowError = `Stok kurang dari 0 (${newTotalQuantity})`;
                  } else {
-                   runningQuantity = newTotalQuantity; // Sukses
+                   runningQuantity = newTotalQuantity;
                  }
               } else {
                 const currentBinStock = simulatedBins.get(predictedBinId) || 0;
@@ -430,7 +431,7 @@ export function AutoScanMaterialModal({
                 if (!rowError) {
                    newTotalQuantity -= predictedQtyPcs;
                    runningQuantity = newTotalQuantity;
-                   simulatedBins.set(predictedBinId, currentBinStock - predictedQtyPcs); // Update simulasi
+                   simulatedBins.set(predictedBinId, currentBinStock - predictedQtyPcs);
                 }
               }
             }
@@ -439,8 +440,7 @@ export function AutoScanMaterialModal({
           return {
             ...scan,
             status: rowError ? "error" : "success",
-            baseData: baseData, // Simpan data asli
-            // Buat snapshot dari simulasi untuk baris ini
+            baseData: baseData, 
             simulatedBins: new Map(simulatedBins),
             simulatedTotal: runningQuantity,
             predictedMovement,
@@ -448,14 +448,14 @@ export function AutoScanMaterialModal({
             predictedQtyPcs,
             showQtyInput,
             qtyInputLabel,
-            inputQty: rowError ? scan.inputQty : inputQty, // Tampilkan inputQty
+            inputQty: rowError ? scan.inputQty : inputQty, 
             finalRawScan: rowError ? "" : finalRawScan,
             errorMessage: rowError,
           };
         });
       });
     },
-    [authRole] // Hapus 'scans' dari dependency array
+    [authRole]
   );
 
   const [groupToRevalidate, setGroupToRevalidate] = useState<string | null>(
@@ -491,18 +491,26 @@ export function AutoScanMaterialModal({
       )
     );
   };
+  
   const handleQtyChange = (id: number, newQtyStr: string) => {
      setScans(prevScans => 
        prevScans.map(scan => {
          if(scan.id !== id || !scan.showQtyInput) {
            return scan;
          }
+         
+         if(newQtyStr === "") {
+            return {
+             ...scan,
+             inputQty: "",
+             errorMessage: "Qty harus diisi",
+           }
+         }
 
          const newQty = parseInt(newQtyStr, 10);
          const qtyValue = isNaN(newQty) ? 0 : newQty;
          
          let newPredictedQtyPcs = 0;
-         // Ambil data dari baseData yang tersimpan di state
          if (scan.baseData) { 
            const { productType, packQuantity } = scan.baseData;
            if (productType === 'consumable') {
@@ -516,11 +524,10 @@ export function AutoScanMaterialModal({
 
          return {
            ...scan,
-           inputQty: newQtyStr, // Simpan string (bisa jadi "0" atau "")
+           inputQty: newQtyStr, 
            finalRawScan: newFinalRawScan,
-           predictedQtyPcs: newPredictedQtyPcs, // Update PCS untuk getMovementText
-           // JANGAN UBAH STATUS DI SINI
-           // status: "idle", <-- INI SUMBER MASALAHNYA
+           predictedQtyPcs: newPredictedQtyPcs, 
+           errorMessage: qtyValue <= 0 ? "Qty harus > 0" : null,
          }
        })
      );
@@ -531,25 +538,20 @@ export function AutoScanMaterialModal({
     if (!scan) return;
 
     let codeToRevalidate = scan.parsed.materialCode;
-    let newRawScan = scan.rawScan; // Default
+    let newRawScan = scan.rawScan; 
     let needsStateUpdate = false;
 
-    // Cek apakah ini blur dari input Qty?
-    // Kita bisa tahu jika showQtyInput == true DAN inputQty baru saja diubah
     if (scan.showQtyInput) {
        const qtyNum = parseInt(scan.inputQty, 10);
        if(isNaN(qtyNum) || qtyNum <= 0) {
-          // Jika qty tidak valid, set error & HENTIKAN revalidasi
           setScans(prev => prev.map(s => s.id === id ? { ...s, status: "error", errorMessage: "Qty tidak valid", baseData: null } : s));
           return; 
        }
-       // Qty valid, update rawScan agar sinkron
        newRawScan = `${scan.parsed.materialCode}_OUT_${scan.parsed.binId}_${qtyNum}`;
     }
 
     const reParsed = parseRawScan(newRawScan);
     
-    // Cek apakah state perlu disinkronkan sebelum revalidasi
     if (scan.rawScan !== newRawScan || scan.parsed.error !== reParsed.error) {
         needsStateUpdate = true;
     }
@@ -558,20 +560,18 @@ export function AutoScanMaterialModal({
 
     if (codeToRevalidate) {
       if (needsStateUpdate) {
-        // Sinkronkan state dulu, JANGAN set status idle
         setScans(prev => prev.map(s => s.id === id ? {...s, rawScan: newRawScan, parsed: reParsed } : s));
       }
-      // Langsung picu revalidasi
       setGroupToRevalidate(codeToRevalidate);
     }
   };
+  
   const handleKeyDown = (
     e: KeyboardEvent<HTMLInputElement>,
     currentId: number,
     currentIndex: number
   ) => {
     if (e.key === "Tab" && !e.shiftKey) {
-      // Cek jika fokus ada di input Qty, jangan tambah baris baru
       if ((e.target as HTMLElement).id.startsWith("qty-")) {
         return; 
       }
@@ -610,7 +610,6 @@ export function AutoScanMaterialModal({
     });
 
     if (codeToRevalidate) {
-      // Cek apakah masih ada scan lain dengan material code yg sama
       const needsRevalidation = scans.some(s => s.id !== id && s.parsed.materialCode === codeToRevalidate);
       if(needsRevalidation) {
         setGroupToRevalidate(codeToRevalidate);
