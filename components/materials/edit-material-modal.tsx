@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useAuthStore, Material } from "@/lib/types";
+import { useState, useMemo, useEffect } from "react";
+import { useAuthStore, Material, MaterialBin } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -20,7 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BinPreview } from "./bin-preview";
+import { Wand2 } from "lucide-react";
 
+// ... (Interface, consts, roundUpToPack, FormErrors... tidak berubah) ...
 interface EditMaterialModalProps {
   material: Material;
   setIsOpen: (open: boolean) => void;
@@ -36,11 +38,31 @@ const HARDCODED_VENDORS = [
   "Presisi",
 ];
 
+const roundUpToPack = (value: number, packQty: number) => {
+  if (packQty <= 0) return value;
+  return Math.ceil(value / packQty) * packQty;
+};
+
+interface FormErrors {
+  materialCode?: string;
+  vendorCode?: string;
+  packQuantity?: string;
+  quantityPerBin?: string; // Input error for Consumable/Option
+  maxBinQty?: string; // Input error for Kanban
+  totalBins?: string; // Input error for Consumable/Option
+  minBinQty?: string; // Input error for Option
+  currentQuantity?: string;
+  pic?: string;
+  general?: string;
+  [key: string]: string | undefined;
+}
+
 export function EditMaterialModal({
   material,
   setIsOpen,
   onMaterialUpdated,
 }: EditMaterialModalProps) {
+  // ... (State, useMemo... tidak berubah) ...
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
   const authUsername = useAuthStore((state) => state.username);
@@ -51,68 +73,326 @@ export function EditMaterialModal({
   );
   const [location, setLocation] = useState(material.lokasi);
   const [vendorCode, setVendorCode] = useState(material.vendorCode);
+  const [productType, setProductType] = useState<
+    "kanban" | "consumable" | "option"
+  >(material.productType || "kanban");
 
-  const [currentQuantity, setCurrentQuantity] = useState(
+  const [kanbanCurrentQuantity, setKanbanCurrentQuantity] = useState(
     String(material.currentQuantity)
   );
+
   const [packQuantity, setPackQuantity] = useState(
     String(material.packQuantity)
   );
-  const initialTotalBins =
-    material.packQuantity > 0
-      ? String(material.maxBinQty / material.packQuantity)
-      : "0";
-  const [totalBins, setTotalBins] = useState(initialTotalBins);
+  const [maxBinQty, setMaxBinQty] = useState(String(material.maxBinQty));
   const [minBinQty, setMinBinQty] = useState(String(material.minBinQty));
   
-  const [pic, setPic] = useState(authUsername || "");
-
-  const originalQuantity = useMemo(
-    () => String(material.currentQuantity),
-    [material.currentQuantity]
+  const [quantityPerBin, setQuantityPerBin] = useState(
+    String(material.bins?.[0]?.maxBinStock || material.packQuantity)
   );
-  const stockHasChanged = currentQuantity !== originalQuantity;
 
-  const { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty, nCurrentQuantity } =
-    useMemo(() => {
-      const nPackQty = parseInt(packQuantity, 10) || 0;
-      const nTotalBins = parseInt(totalBins, 10) || 0;
-      const nMinBinQty = parseInt(minBinQty, 10) || 0;
-      const nMaxBinQty = nPackQty * nTotalBins;
-      const nCurrentQuantity = parseInt(currentQuantity, 10) || 0;
-      return { nPackQty, nTotalBins, nMinBinQty, nMaxBinQty, nCurrentQuantity };
-    }, [packQuantity, totalBins, minBinQty, currentQuantity]);
+  const [totalBins, setTotalBins] = useState(() => {
+    const qtyPerBin = material.bins?.[0]?.maxBinStock || material.packQuantity;
+    if (qtyPerBin > 0 && material.productType !== "kanban") {
+      return String(material.maxBinQty / qtyPerBin);
+    }
+    return String(
+      material.bins?.length ||
+        (material.packQuantity > 0
+          ? material.maxBinQty / material.packQuantity
+          : 0)
+    );
+  });
+
+  const [pic, setPic] = useState(authUsername || "");
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [showKelipatanError, setShowKelipatanError] = useState(false);
+
+  const [bins, setBins] = useState<MaterialBin[]>(
+    material.bins ? JSON.parse(JSON.stringify(material.bins)) : []
+  );
+
+  const {
+    nPackQty,
+    nMinBinQty,
+    nMaxBinQty,
+    nTotalBinsMemo,
+    nQuantityPerBinMemo,
+  } = useMemo(() => {
+    const nPackQty = parseInt(packQuantity, 10) || 0;
+    let nQuantityPerBinMemo = parseInt(quantityPerBin, 10) || 0; 
+
+    let nMaxBinQty = 0;
+    let nMinBinQty = 0;
+    let nTotalBinsMemo = 0;
+
+    if (productType === "kanban") {
+      const initialMaxBinQty = parseInt(maxBinQty, 10) || 0;
+      nMaxBinQty = roundUpToPack(initialMaxBinQty, nPackQty);
+      nMinBinQty = nPackQty; 
+      nQuantityPerBinMemo = nPackQty;
+      nTotalBinsMemo = nPackQty > 0 ? Math.ceil(nMaxBinQty / nPackQty) : 0;
+    } else if (productType === "consumable") {
+      nTotalBinsMemo = parseInt(totalBins, 10) || 0;
+      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
+      nMinBinQty = nPackQty;
+    } else {
+      const initialMinBinQty = parseInt(minBinQty, 10) || 0;
+      nTotalBinsMemo = parseInt(totalBins, 10) || 0;
+      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
+      nMinBinQty = roundUpToPack(initialMinBinQty, nPackQty);
+    }
+
+    return {
+      nPackQty,
+      nMinBinQty,
+      nMaxBinQty,
+      nTotalBinsMemo,
+      nQuantityPerBinMemo,
+    };
+  }, [
+    packQuantity,
+    quantityPerBin,
+    maxBinQty,
+    minBinQty,
+    totalBins,
+    productType,
+  ]);
+  
+  // ... (useEffect, stockHasChanged, handleBinStockChange, clearError, handleSetAllBins... tidak berubah) ...
+  
+  useEffect(() => {
+    if (productType === "kanban") {
+      setBins([]);
+      return;
+    }
+    setBins((currentBins) => {
+      const newBins: MaterialBin[] = [];
+      for (let i = 1; i <= nTotalBinsMemo; i++) {
+        const existingBin = currentBins.find((b) => b.binSequenceId === i);
+        if (existingBin) {
+          newBins.push({
+            ...existingBin,
+            maxBinStock: nQuantityPerBinMemo,
+          });
+        } else {
+          newBins.push({
+            id: -i,
+            materialId: material.id,
+            binSequenceId: i,
+            maxBinStock: nQuantityPerBinMemo,
+            currentBinStock: 0,
+          });
+        }
+      }
+      return newBins.slice(0, nTotalBinsMemo);
+    });
+  }, [nTotalBinsMemo, nQuantityPerBinMemo, productType, material.id]);
+
+  const nCurrentQuantity = useMemo(() => {
+    if (productType === "kanban") {
+      return parseInt(kanbanCurrentQuantity, 10) || 0;
+    }
+    return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
+  }, [bins, productType, kanbanCurrentQuantity]);
+
+  const stockHasChanged = useMemo(() => {
+    return nCurrentQuantity !== material.currentQuantity;
+  }, [nCurrentQuantity, material.currentQuantity]);
+
+  const handleBinStockChange = (index: number, value: string) => {
+    const stock = parseInt(value, 10);
+    const newBins = [...bins];
+    const bin = newBins[index];
+
+    if (isNaN(stock)) {
+      bin.currentBinStock = 0;
+    } else if (stock < 0) {
+      bin.currentBinStock = 0;
+    } else {
+      bin.currentBinStock = stock;
+    }
+
+    setBins(newBins);
+    clearError(`bin_${index}`);
+  };
+
+  const clearError = (field: keyof FormErrors) => {
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleSetAllBins = (stockValue: number) => {
+    if (nQuantityPerBinMemo <= 0 && stockValue > 0) return;
+    const newStock = Math.min(nQuantityPerBinMemo, Math.max(0, stockValue));
+    const newBins = bins.map((bin) => ({
+      ...bin,
+      currentBinStock: newStock,
+    }));
+    setBins(newBins);
+    const newErrors = { ...errors };
+    bins.forEach((_, index) => {
+      delete newErrors[`bin_${index}`];
+    });
+    setErrors(newErrors);
+  };
+  
+  // --- TAMBAHAN: useMemo untuk Replenishment ---
+  const replenishment = useMemo(() => {
+    const soh = nCurrentQuantity; // Stok diambil dari state
+    const totalBins = nTotalBinsMemo;
+    const qtyPerBin = nQuantityPerBinMemo;
+
+    if (qtyPerBin <= 0) return 0;
+
+    // Rumus: ROUNDDOWN(bin - (soh / qty perbin), 0)
+    const calc = Math.floor(totalBins - (soh / qtyPerBin));
+    return calc < 0 ? 0 : calc;
+  }, [nCurrentQuantity, nTotalBinsMemo, nQuantityPerBinMemo]);
+  // ------------------------------------------
+
+  const previewMaterial = useMemo((): Material => {
+    // ... (logika previewMaterial tidak berubah) ...
+    return {
+      ...material,
+      material: materialCode,
+      materialDescription,
+      lokasi: location,
+      vendorCode,
+      productType: productType as Material["productType"],
+      packQuantity: nPackQty,
+      maxBinQty: nMaxBinQty,
+      minBinQty: nMinBinQty,
+      currentQuantity: nCurrentQuantity,
+      bins: productType === "kanban" ? undefined : bins,
+    };
+  }, [
+    material,
+    materialCode,
+    materialDescription,
+    location,
+    vendorCode,
+    productType,
+    nPackQty,
+    nMaxBinQty,
+    nMinBinQty,
+    nCurrentQuantity,
+    bins,
+  ]);
+
+  const autoFixKelipatan = () => {
+    // ... (logika autoFixKelipatan tidak berubah) ...
+    if (
+      productType === "kanban" ||
+      nTotalBinsMemo <= 0 ||
+      nPackQty <= 0
+    )
+      return;
+
+    const targetMax = roundUpToPack(nMaxBinQty, nPackQty);
+    const newQtyPerBin = Math.ceil(targetMax / nTotalBinsMemo);
+    const newMax = nTotalBinsMemo * newQtyPerBin;
+    const finalTargetMax = roundUpToPack(newMax, nPackQty);
+    const finalNewQtyPerBin = Math.ceil(finalTargetMax / nTotalBinsMemo);
+
+    setQuantityPerBin(String(finalNewQtyPerBin));
+    
+    clearError("general");
+    setShowKelipatanError(false);
+  };
+  
+  const validate = (): boolean => {
+    // ... (logika validate tidak berubah, sudah ada validasi Qty/Bin >= PackQty) ...
+    setShowKelipatanError(false); 
+    const newErrors: FormErrors = {};
+
+    if (stockHasChanged && !pic.trim()) {
+      newErrors.pic = "PIC wajib diisi karena stok berubah.";
+    }
+    if (!materialCode.trim()) {
+      newErrors.materialCode = "Kode Material wajib diisi.";
+    }
+    if (!vendorCode) {
+      newErrors.vendorCode = "Vendor wajib dipilih.";
+    }
+    if (nPackQty <= 0) {
+      newErrors.packQuantity = "Pack Qty harus > 0.";
+    }
+
+    if (productType === "kanban") {
+      if (parseInt(maxBinQty, 10) <= 0) {
+        newErrors.maxBinQty = "Max Qty harus > 0.";
+      }
+      if (nCurrentQuantity < 0) {
+        newErrors.currentQuantity = "Current Stock tidak boleh negatif.";
+      }
+    } else if (productType === "consumable") {
+      if (nTotalBinsMemo <= 0) {
+        newErrors.totalBins = "Total Bins harus > 0.";
+      }
+      if (nQuantityPerBinMemo <= 0) {
+        newErrors.quantityPerBin = "Qty per Bin harus > 0.";
+      }
+    } else {
+      if (nTotalBinsMemo <= 0) {
+        newErrors.totalBins = "Total Bins harus > 0.";
+      }
+      if (nQuantityPerBinMemo <= 0) {
+        newErrors.quantityPerBin = "Qty per Bin harus > 0.";
+      }
+      if (parseInt(minBinQty, 10) < 0) {
+        newErrors.minBinQty = "Min Qty tidak boleh negatif.";
+      }
+    }
+
+    let generalError = ""; 
+
+    if (productType === "kanban") {
+      if (nCurrentQuantity > nMaxBinQty) {
+        newErrors.currentQuantity = `Stok (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}).`;
+      }
+    } else {
+      if (nQuantityPerBinMemo > 0 && nPackQty > 0 && nQuantityPerBinMemo < nPackQty) {
+        newErrors.quantityPerBin = `Qty per Bin (${nQuantityPerBinMemo}) tidak boleh lebih kecil dari Pack Qty (${nPackQty}).`;
+      }
+      
+      bins.forEach((bin, index) => {
+        if (bin.currentBinStock < 0) {
+          newErrors[`bin_${index}`] = "Tidak boleh negatif.";
+        }
+        if (bin.currentBinStock > nQuantityPerBinMemo) {
+          newErrors[
+            `bin_${index}`
+          ] = `Stok bin (${bin.currentBinStock}) melebihi Qty/Bin (${nQuantityPerBinMemo}).`;
+        }
+      });
+      if (nCurrentQuantity > nMaxBinQty) {
+        generalError += `Total stok bin (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}). `;
+      }
+    }
+
+    if (nMaxBinQty > 0 && nPackQty > 0 && nMaxBinQty % nPackQty !== 0) {
+      generalError += `Max Qty (Final: ${nMaxBinQty}) harus merupakan kelipatan dari Pack Qty (${nPackQty}). `;
+      setShowKelipatanError(true); 
+    }
+
+    if (nMaxBinQty > 0 && nMaxBinQty < nMinBinQty) {
+      generalError += `Max Qty (Final: ${nMaxBinQty}) tidak boleh lebih kecil dari Min Qty (Final: ${nMinBinQty}). `;
+    }
+
+    if (generalError) {
+      newErrors.general = generalError.trim();
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async () => {
-    if (stockHasChanged && !pic) {
-      alert("PIC (Nama Anda) wajib diisi karena Anda mengubah Current Stock.");
-      return;
-    }
-
-    if (
-      !materialCode ||
-      nPackQty <= 0 ||
-      nTotalBins <= 0 ||
-      nMinBinQty < 0 ||
-      nCurrentQuantity < 0
-    ) {
-      alert(
-        "Semua field (kecuali deskripsi & lokasi) harus diisi dengan valid (>= 0)."
-      );
-      return;
-    }
-
-    if (nMaxBinQty < nMinBinQty) {
-      alert(
-        "Max Bin Qty (Total Bins * Pack Qty) tidak boleh lebih kecil dari Min Bin Qty."
-      );
-      return;
-    }
-
-    if (nCurrentQuantity > nMaxBinQty) {
-      alert(
-        `Current Stock (${nCurrentQuantity}) tidak boleh melebihi Max Bin Qty (${nMaxBinQty}).`
-      );
+    // ... (logika handleSubmit tidak berubah) ...
+    setErrors({});
+    if (!validate()) {
       return;
     }
 
@@ -127,7 +407,9 @@ export function EditMaterialModal({
         minBinQty: nMinBinQty,
         vendorCode,
         currentQuantity: nCurrentQuantity,
-        pic: pic, // Kirim PIC ke backend
+        pic: pic,
+        productType: productType,
+        bins: productType === "kanban" ? null : bins,
       };
 
       const response = await fetch(
@@ -150,13 +432,21 @@ export function EditMaterialModal({
       const updatedMaterial: Material = {
         ...material,
         ...payload,
+        id: material.id,
+        bins: previewMaterial.bins,
       };
 
       onMaterialUpdated(updatedMaterial);
       setIsOpen(false);
     } catch (error) {
       console.error("Error updating material:", error);
-      alert(error instanceof Error ? error.message : "Terjadi kesalahan.");
+      const errorMsg =
+        error instanceof Error ? error.message : "Terjadi kesalahan.";
+      if (errorMsg.includes("duplicate key")) {
+        setErrors({ materialCode: "Kode Material ini sudah ada." });
+      } else {
+        setErrors({ general: errorMsg });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -165,6 +455,7 @@ export function EditMaterialModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
+        {/* ... (Header tidak berubah) ... */}
         <DialogTitle>Edit Material: {material.material}</DialogTitle>
         <DialogDescription>
           Ubah detail material, kuantitas, dan vendor di bawah ini.
@@ -172,16 +463,28 @@ export function EditMaterialModal({
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-        <div className="grid grid-cols-4 items-center gap-4 mb-4">
-          <Label htmlFor="materialCode" className="text-left">
+        {/* ... (Semua input form tidak berubah) ... */}
+        {/* (Saya singkat) */}
+        <div className="grid grid-cols-4 items-start gap-4 mb-4">
+          <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
           </Label>
-          <Input
-            id="materialCode"
-            value={materialCode}
-            onChange={(e) => setMaterialCode(e.target.value)}
-            className="col-span-3"
-          />
+          <div className="col-span-3">
+            <Input
+              id="materialCode"
+              value={materialCode}
+              onChange={(e) => {
+                setMaterialCode(e.target.value);
+                clearError("materialCode");
+              }}
+              className={errors.materialCode ? "border-destructive" : ""}
+            />
+            {errors.materialCode && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.materialCode}
+              </p>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
           <Label htmlFor="description" className="text-left">
@@ -208,37 +511,81 @@ export function EditMaterialModal({
           />
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
-          <Label htmlFor="currentStock" className="text-left">
-            Current Stock
+          <Label htmlFor="productType" className="text-left">
+            Tipe Produk
           </Label>
-          <Input
-            id="currentStock"
-            type="number"
-            value={currentQuantity}
-            onChange={(e) => setCurrentQuantity(e.target.value)}
-            className={`col-span-3 ${
-              stockHasChanged
-                ? "border-destructive focus-visible:ring-destructive"
-                : ""
-            }`}
-          />
+          <Select
+            value={productType}
+            onValueChange={(value: string) =>
+              setProductType(value as "kanban" | "consumable" | "option")
+            }
+          >
+            <SelectTrigger className="col-span-3">
+              <SelectValue placeholder="Pilih Tipe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="kanban">Kanban (Agregat)</SelectItem>
+              <SelectItem value="consumable">Consumable (Per Bin)</SelectItem>
+              <SelectItem value="option">Option (Per Bin)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
-        <div className="grid grid-cols-4 items-center gap-4 mb-4">
-          <Label htmlFor="pic" className="text-left">
+        {productType === "kanban" && (
+          <div className="grid grid-cols-4 items-start gap-4 mb-4">
+            <Label htmlFor="currentStock" className="text-left pt-2">
+              Current Stock
+            </Label>
+            <div className="col-span-3">
+              <Input
+                id="currentStock"
+                type="number"
+                value={kanbanCurrentQuantity}
+                onChange={(e) => {
+                  setKanbanCurrentQuantity(e.target.value);
+                  clearError("currentQuantity");
+                }}
+                className={
+                  errors.currentQuantity
+                    ? "border-destructive"
+                    : stockHasChanged
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : ""
+                }
+              />
+              {errors.currentQuantity && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.currentQuantity}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-4 items-start gap-4 mb-4">
+          <Label htmlFor="pic" className="text-left pt-2">
             PIC
           </Label>
-          <Input
-            id="pic"
-            value={pic}
-            onChange={(e) => setPic(e.target.value)}
-            className={`col-span-3 ${
-              stockHasChanged && !pic ? "border-destructive" : ""
-            }`}
-            placeholder="Nama Anda (Wajib jika stok berubah)"
-          />
+          <div className="col-span-3">
+            <Input
+              id="pic"
+              value={pic}
+              onChange={(e) => {
+                setPic(e.target.value);
+                clearError("pic");
+              }}
+              className={
+                errors.pic
+                  ? "border-destructive"
+                  : stockHasChanged && !pic
+                  ? "border-destructive"
+                  : ""
+              }
+              placeholder="Nama Anda (Wajib jika stok berubah)"
+            />
+            {errors.pic && (
+              <p className="text-xs text-destructive mt-1">{errors.pic}</p>
+            )}
+          </div>
         </div>
-
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -246,68 +593,257 @@ export function EditMaterialModal({
               id="packQty"
               type="number"
               value={packQuantity}
-              onChange={(e) => setPackQuantity(e.target.value)}
+              onChange={(e) => {
+                setPackQuantity(e.target.value);
+                clearError("packQuantity");
+              }}
               placeholder="Qty per scan"
+              className={errors.packQuantity ? "border-destructive" : ""}
             />
+            {errors.packQuantity && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.packQuantity}
+              </p>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="totalBins">Total Bins</Label>
-            <Input
-              id="totalBins"
-              type="number"
-              value={totalBins}
-              onChange={(e) => setTotalBins(e.target.value)}
-              placeholder="Jumlah bin"
-            />
-          </div>
-          <div className="space-y-2 col-span-2">
-            <Label htmlFor="minQty">Min Bin Qty (Trigger Merah)</Label>
-            <Input
-              id="minQty"
-              type="number"
-              value={minBinQty}
-              onChange={(e) => setMinBinQty(e.target.value)}
-              placeholder="Titik trigger 'merah'"
-            />
-          </div>
+          {productType === "kanban" && (
+            <div className="space-y-2">
+              <Label htmlFor="maxBinQty">Max Qty (Total)</Label>
+              <Input
+                id="maxBinQty"
+                type="number"
+                value={maxBinQty}
+                onChange={(e) => {
+                  setMaxBinQty(e.target.value);
+                  clearError("maxBinQty");
+                }}
+                placeholder="Kapasitas total"
+                className={errors.maxBinQty ? "border-destructive" : ""}
+              />
+              {errors.maxBinQty && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.maxBinQty}
+                </p>
+              )}
+            </div>
+          )}
+          {(productType === "consumable" || productType === "option") && (
+            <div className="space-y-2">
+              <Label htmlFor="totalBins">Total Bins</Label>
+              <Input
+                id="totalBins"
+                type="number"
+                value={totalBins}
+                onChange={(e) => {
+                  setTotalBins(e.target.value);
+                  clearError("totalBins");
+                }}
+                placeholder="Jumlah bin"
+                className={errors.totalBins ? "border-destructive" : ""}
+              />
+              {errors.totalBins && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.totalBins}
+                </p>
+              )}
+            </div>
+          )}
+          {(productType === "consumable" || productType === "option") && (
+            <div className="space-y-2">
+              <Label htmlFor="quantityPerBin">Quantity per Bin</Label>
+              <Input
+                id="quantityPerBin"
+                type="number"
+                value={quantityPerBin}
+                onChange={(e) => {
+                  setQuantityPerBin(e.target.value);
+                  clearError("quantityPerBin");
+                }}
+                placeholder="Kapasitas per bin"
+                className={errors.quantityPerBin ? "border-destructive" : ""}
+              />
+              {errors.quantityPerBin && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.quantityPerBin}
+                </p>
+              )}
+            </div>
+          )}
+          {productType === "option" && (
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="minQty">Min Qty (Trigger)</Label>
+              <Input
+                id="minQty"
+                type="number"
+                value={minBinQty}
+                onChange={(e) => {
+                  setMinBinQty(e.target.value);
+                  clearError("minBinQty");
+                }}
+                placeholder="Titik trigger 'merah'"
+                className={errors.minBinQty ? "border-destructive" : ""}
+              />
+              {errors.minBinQty && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.minBinQty}
+                </p>
+              )}
+            </div>
+          )}
         </div>
+        
+        {/* ... (Blok Error General dipindah ke sini) ... */}
+        {errors.general && (
+          <div className="col-span-4 my-2 text-sm text-destructive text-center p-2 bg-destructive/10 rounded-md">
+            <p>{errors.general}</p>
+            {showKelipatanError && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="mt-2"
+                onClick={autoFixKelipatan}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                Otomatis Bulatkan Qty per Bin
+              </Button>
+            )}
+          </div>
+        )}
 
-        <div className="col-span-4 rounded-md border p-4 my-2">
+        {/* ... (Stok per Bin... tidak berubah) ... */}
+        {productType !== "kanban" && bins.length > 0 && (
+          <div className="col-span-4 border-t pt-4 mt-4">
+            <Label className="text-base font-medium">Stok per Bin</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Atur stok untuk tiap bin individual. Total stok akan dihitung
+              otomatis.
+            </p>
+
+            <div className="flex items-center gap-2 mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSetAllBins(0)}
+                disabled={nQuantityPerBinMemo <= 0 && bins.length > 0}
+              >
+                Empty All Bins (Set to 0)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSetAllBins(nQuantityPerBinMemo)}
+                disabled={nQuantityPerBinMemo <= 0}
+              >
+                Fill All Bins (Set to {nQuantityPerBinMemo || 0})
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-x-4 gap-y-5">
+              {bins.map((bin, index) => (
+                <div key={bin.binSequenceId} className="space-y-1">
+                  <Label htmlFor={`bin-${bin.binSequenceId}`}>
+                    Bin {bin.binSequenceId} (Max: {nQuantityPerBinMemo})
+                  </Label>
+                  <Input
+                    id={`bin-${bin.binSequenceId}`}
+                    type="number"
+                    value={bin.currentBinStock}
+                    onChange={(e) =>
+                      handleBinStockChange(index, e.target.value)
+                    }
+                    className={
+                      errors[`bin_${index}`] ? "border-destructive" : ""
+                    }
+                  />
+                  {errors[`bin_${index}`] && (
+                    <p className="text-xs text-destructive">
+                      {errors[`bin_${index}`]}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+        <div className="col-span-4 rounded-md border p-4 my-4">
           <Label className="text-xs text-muted-foreground">
             Preview Konfigurasi Bin
           </Label>
           <p className="text-xs text-muted-foreground mb-3">
-            Max Qty: <span className="font-bold text-primary">{nMaxBinQty}</span>{" "}
-            (Otomatis dari {nTotalBins} bin x {nPackQty} pcs)
+            Total Stok (Kalkulasi):{" "}
+            <span
+              className={`font-bold ${
+                stockHasChanged ? "text-destructive" : "text-primary"
+              }`}
+            >
+              {nCurrentQuantity}
+            </span>{" "}
+            | Max Qty (Final):{" "}
+            <span className="font-bold text-primary">{nMaxBinQty}</span> | Min
+            Qty (Final):{" "}
+            <span className="font-bold text-primary">{nMinBinQty}</span>
           </p>
-          <BinPreview
-            packQuantity={nPackQty}
-            maxBinQty={nMaxBinQty}
-            minBinQty={nMinBinQty}
-            currentQuantity={nCurrentQuantity}
-          />
+          {/* --- BARIS BARU DITAMBAHKAN DI SINI --- */}
+          <p className="text-xs text-muted-foreground mb-3">
+            Replenishment:{" "}
+            <span className="font-bold text-primary">{replenishment}</span> bin
+            (SOH: {nCurrentQuantity})
+          </p>
+          {/* ------------------------------------ */}
+          <p className="text-xs text-muted-foreground mb-3">
+            {productType === "kanban" ? "Setara" : "Total"}{" "}
+            <span className="font-bold text-primary">{nTotalBinsMemo}</span> bin
+            , masing-masing{" "}
+            <span className="font-bold text-primary">
+              {nQuantityPerBinMemo}
+            </span>{" "}
+            pcs
+          </p>
+          <BinPreview material={previewMaterial} />
         </div>
 
-        <div className="grid grid-cols-4 items-center gap-4 border-t pt-4 mt-2">
-          <Label htmlFor="vendorCode" className="text-left">
+        {/* ... (Vendor... tidak berubah) ... */}
+        <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
+          <Label htmlFor="vendorCode" className="text-left pt-2">
             Vendor
           </Label>
-          <Select value={vendorCode} onValueChange={setVendorCode}>
-            <SelectTrigger className="col-span-3">
-              <SelectValue placeholder="Pilih vendor" />
-            </SelectTrigger>
-            <SelectContent>
-              {HARDCODED_VENDORS.map((code) => (
-                <SelectItem key={code} value={code}>
-                  {code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="col-span-3">
+            <Select
+              value={vendorCode}
+              onValueChange={(value) => {
+                setVendorCode(value);
+                clearError("vendorCode");
+              }}
+            >
+              <SelectTrigger
+                className={errors.vendorCode ? "border-destructive" : ""}
+              >
+                <SelectValue placeholder="Pilih vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                {HARDCODED_VENDORS.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.vendorCode && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.vendorCode}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       <DialogFooter>
+        {/* ... (Footer tidak berubah) ... */}
         <Button variant="outline" onClick={() => setIsOpen(false)}>
           Batal
         </Button>

@@ -47,6 +47,11 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+const roundUpToPack = (value: number, packQty: number) => {
+  if (packQty <= 0) return value;
+  return Math.ceil(value / packQty) * packQty;
+};
+
 export function ImportMaterialModal({
   setIsOpen,
   onImportSuccess,
@@ -62,7 +67,6 @@ export function ImportMaterialModal({
   const authRole = useAuthStore((state) => state.role);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- File Handling ---
   const handleFileSelect = (file: File | undefined) => {
     setError(null);
     setValidationRows([]);
@@ -121,7 +125,6 @@ export function ImportMaterialModal({
     document.body.removeChild(link);
   };
 
-  // --- Upload & Validation ---
   const handleUpload = async () => {
     if (!selectedFile) {
       setError("Silakan pilih file CSV untuk diimpor.");
@@ -153,7 +156,9 @@ export function ImportMaterialModal({
 
         if (missingHeaders.length > 0) {
           setError(
-            `Header CSV tidak valid. Header yang hilang: ${missingHeaders.join(", ")}`
+            `Header CSV tidak valid. Header yang hilang: ${missingHeaders.join(
+              ", "
+            )}`
           );
           setIsLoading(false);
           return;
@@ -176,13 +181,16 @@ export function ImportMaterialModal({
 
           if (!code) continue;
 
-          if (nMax < nMin) {
+          const roundedMax = roundUpToPack(nMax, nPackQty);
+          const roundedMin = roundUpToPack(nMin, nPackQty);
+
+          if (roundedMax < roundedMin) {
             valErrs.push({
               rowNum,
               materialCode: code,
-              maxQty: nMax,
-              minQty: nMin,
-              message: `Max Qty (${nMax}) < Min Qty (${nMin})`,
+              maxQty: roundedMax,
+              minQty: roundedMin,
+              message: `Max Qty (${roundedMax}) < Min Qty (${roundedMin}) (Setelah round-up ke Pack Qty ${nPackQty})`,
               originalRow: trimmed,
             });
           } else {
@@ -191,8 +199,8 @@ export function ImportMaterialModal({
               materialDescription: trimmed["Deskripsi"] || "",
               lokasi: trimmed["Lokasi"] || "",
               packQuantity: nPackQty,
-              maxBinQty: nMax,
-              minBinQty: nMin,
+              maxBinQty: roundedMax,
+              minBinQty: roundedMin,
               vendorCode: trimmed["Vendor"],
             });
           }
@@ -210,7 +218,6 @@ export function ImportMaterialModal({
     });
   };
 
-  // --- Edit in Modal ---
   const handleEditField = (
     index: number,
     field: "maxQty" | "minQty",
@@ -229,15 +236,21 @@ export function ImportMaterialModal({
     const updated = [...validationRows];
     const row = updated[index];
 
-    if (row.maxQty >= row.minQty) {
-      // pindahkan ke payload valid
+    const nPackQty = parseInt(row.originalRow["Pack Qty"], 10) || 0;
+    const editedMax = row.maxQty;
+    const editedMin = row.minQty;
+
+    const roundedMax = roundUpToPack(editedMax, nPackQty);
+    const roundedMin = roundUpToPack(editedMin, nPackQty);
+
+    if (roundedMax >= roundedMin) {
       const newPayload = {
         material: row.materialCode,
         materialDescription: row.originalRow["Deskripsi"] || "",
         lokasi: row.originalRow["Lokasi"] || "",
-        packQuantity: parseInt(row.originalRow["Pack Qty"], 10) || 0,
-        maxBinQty: row.maxQty,
-        minBinQty: row.minQty,
+        packQuantity: nPackQty,
+        maxBinQty: roundedMax,
+        minBinQty: roundedMin,
         vendorCode: row.originalRow["Vendor"],
       };
       setValidPayloads((prev) => [...prev, newPayload]);
@@ -245,11 +258,14 @@ export function ImportMaterialModal({
       updated.splice(index, 1);
       setValidationRows(updated);
     } else {
-      alert("Masih ada error pada nilai yang dimasukkan!");
+      updated[index].maxQty = roundedMax;
+      updated[index].minQty = roundedMin;
+      updated[index].message = `Max Qty (${roundedMax}) < Min Qty (${roundedMin}) (Setelah round-up ke Pack Qty ${nPackQty})`;
+      setValidationRows(updated);
+      alert("Masih ada error pada nilai yang dimasukkan (setelah pembulatan)!");
     }
   };
 
-  // --- Final Import ---
   const handleFinalImport = async () => {
     if (validPayloads.length === 0) {
       alert("Tidak ada data valid untuk diimpor.");
@@ -265,7 +281,9 @@ export function ImportMaterialModal({
       const payload = validPayloads[i];
       const percent = Math.round(((i + 1) / validPayloads.length) * 100);
       setUploadPercent(percent);
-      setProgress(`Mengimpor ${i + 1}/${validPayloads.length}: ${payload.material}`);
+      setProgress(
+        `Mengimpor ${i + 1}/${validPayloads.length}: ${payload.material}`
+      );
 
       try {
         const res = await fetch(
@@ -352,7 +370,9 @@ export function ImportMaterialModal({
                 <span className="font-semibold">Klik untuk memilih</span> atau
                 tarik file ke sini
               </p>
-              <p className="text-xs text-gray-500">Hanya file .CSV yang didukung</p>
+              <p className="text-xs text-gray-500">
+                Hanya file .CSV yang didukung
+              </p>
             </div>
           )}
           <Input
@@ -367,7 +387,6 @@ export function ImportMaterialModal({
 
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
 
-        {/* === Editable Error Table === */}
         {validationRows.length > 0 && (
           <div className="bg-red-50 border border-red-300 text-red-800 text-sm rounded-md p-3 mt-4 max-h-72 overflow-y-auto">
             <p className="font-semibold mb-2">
@@ -416,7 +435,7 @@ export function ImportMaterialModal({
                         size="sm"
                         onClick={() => handleRevalidateRow(i)}
                       >
-                       Simpan
+                        Simpan
                       </Button>
                     </td>
                   </tr>
@@ -437,7 +456,11 @@ export function ImportMaterialModal({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
+        <Button
+          variant="outline"
+          onClick={() => setIsOpen(false)}
+          disabled={isLoading}
+        >
           Batal
         </Button>
         {validationRows.length > 0 ? (
@@ -449,7 +472,11 @@ export function ImportMaterialModal({
             onClick={validPayloads.length ? handleFinalImport : handleUpload}
             disabled={isLoading || !selectedFile}
           >
-            {isLoading ? "Memproses..." : validPayloads.length ? "Impor Data" : "Validasi CSV"}
+            {isLoading
+              ? "Memproses..."
+              : validPayloads.length
+              ? "Impor Data"
+              : "Validasi CSV"}
           </Button>
         )}
       </DialogFooter>

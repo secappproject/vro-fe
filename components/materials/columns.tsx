@@ -21,6 +21,13 @@ export const getMaterialColumns = (
     enableHiding: false,
   },
   {
+    accessorKey: "productType",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Tipe" />
+    ),
+    enableColumnFilter: true,
+  },
+  {
     accessorKey: "material",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Kode Material" />
@@ -40,43 +47,92 @@ export const getMaterialColumns = (
     enableColumnFilter: true,
   },
   {
+    accessorKey: "currentQuantity",
+    id: "soh",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="SoH" />
+    ),
+    cell: ({ row }) => {
+      return <span>{row.getValue("soh")}</span>;
+    },
+    enableSorting: true,
+    enableColumnFilter: true,
+    enableHiding: false,
+  },
+  {
     id: "currentQuantity",
     accessorFn: (row) => row.currentQuantity,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Stok Bin" />
     ),
     cell: ({ row }) => {
-      const { currentQuantity, maxBinQty, minBinQty, packQuantity } =
-        row.original as Material;
-      return (
-        <BinPreview
-          currentQuantity={currentQuantity}
-          maxBinQty={maxBinQty}
-          minBinQty={minBinQty}
-          packQuantity={packQuantity}
-        />
-      );
+      return <BinPreview material={row.original as Material} />;
     },
     enableSorting: false,
     enableColumnFilter: true,
     enableHiding: false,
   },
   {
+    id: "replenishment",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Replenishment" />
+    ),
+    accessorFn: (row) => {
+      const {
+        productType,
+        currentQuantity,
+        maxBinQty,
+        packQuantity,
+        bins,
+      } = row;
+
+      let totalBins = 0;
+      let qtyPerBin = 0;
+
+      if (productType === "kanban") {
+        if (packQuantity <= 0) return null;
+        qtyPerBin = packQuantity;
+        totalBins = Math.ceil(maxBinQty / packQuantity);
+      } else {
+        if (!bins || bins.length === 0) return null;
+        qtyPerBin = bins[0]?.maxBinStock;
+        totalBins = bins.length;
+      }
+
+      if (qtyPerBin <= 0) return null;
+
+      const soh = currentQuantity;
+      const replenishment = Math.floor(totalBins - soh / qtyPerBin);
+
+      return replenishment < 0 ? 0 : replenishment;
+    },
+    cell: ({ row }) => {
+      const value = row.getValue("replenishment");
+
+      if (typeof value !== "number") {
+        return <span className="text-muted-foreground">-</span>;
+      }
+
+      return <span className="font-medium">{value} bin</span>;
+    },
+    enableSorting: true,
+  },
+  {
     id: "remark",
     accessorFn: (row) => {
-      const { currentQuantity = 0, maxBinQty, minBinQty, packQuantity } = row;
+      const { currentQuantity = 0, maxBinQty, packQuantity } = row;
 
       if (packQuantity <= 0 || maxBinQty <= 0) {
         return "N/A";
       }
 
-      const reorderPoint = Math.max(minBinQty, packQuantity);
-      const halfMaxQty = maxBinQty / 2;
       const current = currentQuantity;
+      const shortagePoint = Math.ceil(maxBinQty * 0.3);
+      const preshortagePoint = Math.ceil(maxBinQty * 0.6);
 
-      if (current <= reorderPoint) {
+      if (current <= shortagePoint) {
         return "shortage";
-      } else if (current > reorderPoint && current <= halfMaxQty) {
+      } else if (current > shortagePoint && current <= preshortagePoint) {
         return "preshortage";
       } else {
         return "ok";
@@ -121,16 +177,14 @@ export const getMaterialColumns = (
     ),
     enableColumnFilter: true,
   },
-  // --- KOLOM PIC DITAMBAHKAN DI SINI ---
   {
     accessorKey: "pic",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="PIC" />
     ),
     enableColumnFilter: true,
-    enableHiding: true, // Default-nya di-hide, bisa dibuka di 'View'
+    enableHiding: true,
   },
-  // --- AKHIR KOLOM PIC ---
   {
     id: "actions",
     cell: ({ row }) => (

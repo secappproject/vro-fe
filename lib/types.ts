@@ -36,6 +36,14 @@ export interface Vendor {
   createdAt: string;
   updatedAt: string;
 }
+export interface MaterialBin {
+  id: number;
+  materialId: number;
+  binSequenceId: number;
+  maxBinStock: number;
+  currentBinStock: number;
+}
+
 export interface Material {
   id: number;
   material: string;
@@ -46,6 +54,19 @@ export interface Material {
   minBinQty: number;
   vendorCode: string;
   currentQuantity: number;
+  pic?: string;
+  productType: 'kanban' | 'consumable' | 'option';
+  bins?: MaterialBin[]; 
+}
+
+export interface MaterialStatusResponse {
+  packQuantity: number;
+  maxBinQty: number;
+  minBinQty: number;
+  currentQuantity: number;
+  productType: "kanban" | "consumable" | "option";
+  quantityPerBin: number; 
+  bins: MaterialBin[] | null; 
 }
 
 export const useAuthStore = create<UserState>()(

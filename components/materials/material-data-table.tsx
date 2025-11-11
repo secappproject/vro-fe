@@ -65,6 +65,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
       packQuantity: false,
       maxBinQty: false,
       totalBins: false,
+      pic: false, // Sembunyikan PIC by default
     });
 
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -114,6 +115,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const maxBinQtyColumn = table.getColumn("maxBinQty");
   const totalBinsColumn = table.getColumn("totalBins");
   const currentQuantityColumn = table.getColumn("currentQuantity");
+  const productTypeColumn = table.getColumn("productType");
 
   React.useEffect(() => {
     const chipsString = filterChips.join(" ");
@@ -164,6 +166,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
       "Remark",
       "Vendor",
       "Lokasi",
+      "Tipe",
       "Min Qty",
       "Pack Qty",
       "Max Qty",
@@ -177,6 +180,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
       row.getValue("remark"),
       row.getValue("vendorCode"),
       row.getValue("lokasi"),
+      row.getValue("productType"), 
       row.getValue("minBinQty"),
       row.getValue("packQuantity"),
       row.getValue("maxBinQty"),
@@ -305,11 +309,17 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {currentQuantityColumn && (
           <DataTableFacetedFilter
             column={currentQuantityColumn}
             title="Stok Bin"
+          />
+        )}
+        {productTypeColumn && ( 
+          <DataTableFacetedFilter
+            column={productTypeColumn}
+            title="Tipe"
           />
         )}
         {minBinQtyColumn && (

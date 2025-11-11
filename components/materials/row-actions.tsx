@@ -13,17 +13,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Material } from "@/lib/types"; // Diubah
+import { Material } from "@/lib/types"; 
 import { DeleteMaterialAlert } from "./delete-material-alert";
 import { EditMaterialModal } from "./edit-material-modal";
 
 interface DataTableRowActionsProps {
-  material: Material; // Diubah
-  onMaterialUpdated: (updatedMaterial: Material) => void; // Diubah
-  onMaterialDeleted: (materialId: number) => void; // Diubah
+  material: Material; 
+  onMaterialUpdated: (updatedMaterial: Material) => void; 
+  onMaterialDeleted: (materialId: number) => void; 
 }
 
-export function MaterialDataTableRowActions({ // Diubah
+export function MaterialDataTableRowActions({ 
   material,
   onMaterialUpdated,
   onMaterialDeleted,
