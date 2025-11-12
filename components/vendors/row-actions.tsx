@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Vendor } from "@/lib/types";
+import { Vendor, useAuthStore } from "@/lib/types";
 import { DeleteVendorAlert } from "./delete-vendor-alert";
 import { EditVendorModal } from "./edit-vendor-modal";
 
@@ -30,6 +30,14 @@ export function VendorDataTableRowActions({
 }: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const authRole = useAuthStore((state) => state.role);
+
+  const isReadOnly =
+    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+
+  if (authRole === "Viewer") {
+    return null;
+  }
 
   return (
     <>
@@ -44,11 +52,12 @@ export function VendorDataTableRowActions({
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Vendor
+            {isReadOnly ? "Lihat Vendor" : "Edit Vendor"}
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600"
             onSelect={() => setIsDeleteAlertOpen(true)}
+            disabled={isReadOnly}
           >
             Hapus Vendor
           </DropdownMenuItem>

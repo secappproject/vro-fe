@@ -13,23 +13,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Material } from "@/lib/types"; 
+import { Material, useAuthStore } from "@/lib/types";
 import { DeleteMaterialAlert } from "./delete-material-alert";
 import { EditMaterialModal } from "./edit-material-modal";
 
 interface DataTableRowActionsProps {
-  material: Material; 
-  onMaterialUpdated: (updatedMaterial: Material) => void; 
-  onMaterialDeleted: (materialId: number) => void; 
+  material: Material;
+  onMaterialUpdated: (updatedMaterial: Material) => void;
+  onMaterialDeleted: (materialId: number) => void;
 }
 
-export function MaterialDataTableRowActions({ 
+export function MaterialDataTableRowActions({
   material,
   onMaterialUpdated,
   onMaterialDeleted,
 }: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const authRole = useAuthStore((state) => state.role);
+
+  if (authRole === "Viewer") {
+    return null;
+  }
+
+  const isReadOnly = authRole === "Admin" || authRole === "Vendor";
 
   return (
     <>
@@ -44,11 +51,12 @@ export function MaterialDataTableRowActions({
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Material
+            {isReadOnly ? "Lihat Material" : "Edit Material"}
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600"
             onSelect={() => setIsDeleteAlertOpen(true)}
+            disabled={isReadOnly}
           >
             Hapus Material
           </DropdownMenuItem>

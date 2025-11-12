@@ -22,16 +22,19 @@ export function VendorPage() {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
+  const canViewPage = role === "Admin" || role === "Superuser";
+  const canAdd = role === "Superuser";
+
   useEffect(() => {
     setIsClient(true);
-    if (role && role !== "Admin") {
+    if (role && !canViewPage) {
       router.push("/");
     }
-  }, [role, router]);
+  }, [role, router, canViewPage]);
 
   useEffect(() => {
     async function getVendorData() {
-      if (role !== "Admin") return;
+      if (!role) return;
       setIsLoading(true);
       try {
         const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/`;
@@ -52,10 +55,10 @@ export function VendorPage() {
       }
     }
 
-    if (role === "Admin") {
+    if (canViewPage) {
       getVendorData();
     }
-  }, [role]);
+  }, [role, canViewPage]);
 
   const handleVendorUpdated = (updatedVendor: Vendor) => {
     setData((prevData) =>
@@ -79,7 +82,7 @@ export function VendorPage() {
     return <VendorAuthSkeleton />;
   }
 
-  if (role !== "Admin") {
+  if (!canViewPage) {
     return (
       <div className="container mx-auto py-10">
         <h1 className="text-3xl text-red-600">Akses Ditolak</h1>
@@ -104,13 +107,15 @@ export function VendorPage() {
               Mengatur daftar master perusahaan dan tipe vendor.
             </p>
           </div>
-          <Button
-            className="flex w-full md:w-52"
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Tambah Vendor
-          </Button>
+          {canAdd && (
+            <Button
+              className="flex w-full md:w-52"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Tambah Vendor
+            </Button>
+          )}
         </div>
 
         <VendorDataTable columns={columns} data={data} />

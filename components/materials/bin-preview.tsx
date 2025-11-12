@@ -90,6 +90,38 @@ function KanbanBinPreview({ material }: BinPreviewProps) {
           );
         })}
       </div>
+
+      {/* --- SECTION LABEL BIN DITAMBAHKAN --- */}
+      <div className="flex space-x-1 mt-1">
+        {bins.map((index) => {
+          const binStartQty = index * packQuantity;
+          const binEndQty = (index + 1) * packQuantity;
+
+          let currentBinStock = 0;
+          if (current >= binEndQty) {
+            currentBinStock = packQuantity;
+          } else if (current > binStartQty) {
+            currentBinStock = current - binStartQty;
+          }
+          
+          const isFilled = currentBinStock > 0;
+
+          return (
+            <div
+              key={index}
+              className="flex-1 text-center font-mono text-[10px] leading-tight"
+            >
+              <div className="text-gray-500 text-[9px]">
+                B{index + 1}
+              </div>
+              <span className={isFilled ? "font-bold" : "text-gray-400"}>
+                {currentBinStock}/{packQuantity}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {/* --- END SECTION LABEL BIN --- */}
     </div>
   );
   // --- AKHIR PERUBAHAN KANBAN ---

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Material, useAuthStore } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,13 @@ export function MaterialPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const role = useAuthStore((state) => state.role);
+  const { role, companyName } = useAuthStore();
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
-    if (role && role !== "Admin") {
+    if (!role) {
       router.push("/");
     }
   }, [role, router]);
@@ -37,7 +37,10 @@ export function MaterialPage() {
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/materials/`;
       const res = await fetch(apiUrl, {
-        headers: { "X-User-Role": role },
+        headers: {
+          "X-User-Role": role,
+          "X-User-Company": companyName || "",
+        },
       });
       if (!res.ok) {
         throw new Error("Gagal mengambil data material");
@@ -55,7 +58,7 @@ export function MaterialPage() {
     if (role) {
       getMaterialData();
     }
-  }, [role]);
+  }, [role, companyName]);
 
   const handleMaterialUpdated = (updatedMaterial: Material) => {
     setData((prevData) =>
@@ -85,6 +88,11 @@ export function MaterialPage() {
     handleMaterialDeleted
   );
 
+  const canScan =
+    role === "Superuser" || role === "Admin" || role === "Vendor";
+  const canImport = role === "Superuser";
+  const canAdd = role === "Superuser";
+
   if (!isClient || !role) {
     return <MaterialAuthSkeleton />;
   }
@@ -103,7 +111,7 @@ export function MaterialPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-2">
-          {role === "Admin" && (
+          {canImport && (
             <Button
               variant="outline"
               className="flex w-full md:w-auto"
@@ -114,16 +122,18 @@ export function MaterialPage() {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            className="flex w-full md:w-auto"
-            onClick={() => setIsScanModalOpen(true)}
-          >
-            <QrCode className="mr-2 h-4 w-4" />
-            Scan Stok (Otomatis)
-          </Button>
+          {canScan && (
+            <Button
+              variant="outline"
+              className="flex w-full md:w-auto"
+              onClick={() => setIsScanModalOpen(true)}
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              Scan Stok (Otomatis)
+            </Button>
+          )}
 
-          {role === "Admin" && (
+          {canAdd && (
             <Button
               className="flex w-full md:w-auto"
               onClick={() => setIsAddModalOpen(true)}

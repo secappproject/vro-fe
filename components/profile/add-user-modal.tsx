@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react"; 
+import { useState, useEffect } from "react";
 import { useAuthStore, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,17 +28,20 @@ interface AddUserModalProps {
 
 export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const role = useAuthStore((state) => state.role); 
+  const authRole = useAuthStore((state) => state.role);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [userRole, setUserRole] = useState("PIC");
+  const [userRole, setUserRole] = useState("Viewer");
   const [companyName, setCompanyName] = useState("");
   const [vendorType, setVendorType] = useState("");
 
   const [companies, setCompanies] = useState<string[]>([]);
   const [vendorTypes, setVendorTypes] = useState<string[]>([]);
 
-  const isVendor = userRole === "External/Vendor";
+  const isVendor = userRole === "Vendor";
+
+  const isReadOnly =
+    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -51,7 +54,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
       try {
         const headers = {
           "Content-Type": "application/json",
-          "X-User-Role": role || "",
+          "X-User-Role": authRole || "",
         };
 
         const compRes = await fetch(
@@ -85,7 +88,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
     };
 
     fetchOptions();
-  }, [isVendor, role]); 
+  }, [isVendor, authRole]);
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -94,12 +97,12 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
         username,
         password,
         role: userRole,
-        companyName: userRole === "External/Vendor"
-          ? { String: companyName, Valid: true } 
-          : null, 
-        vendorType: userRole === "External/Vendor"
-          ? { String: vendorType, Valid: true } 
-          : null, 
+        companyName: isVendor
+          ? { String: companyName, Valid: true }
+          : null,
+        vendorType: isVendor
+          ? { String: vendorType, Valid: true }
+          : null,
       };
 
       if (isVendor && (!companyName || !vendorType)) {
@@ -112,7 +115,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-User-Role": role || "",
+            "X-User-Role": authRole || "",
           },
           body: JSON.stringify(payload),
         }
@@ -124,7 +127,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
       }
 
       const newUser = await response.json();
-      onUserAdded(newUser); 
+      onUserAdded(newUser);
       setIsOpen(false);
     } catch (error) {
       console.error("Error adding user:", error);
@@ -154,6 +157,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="col-span-3"
+              disabled={isReadOnly}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -166,23 +170,26 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="col-span-3"
+              disabled={isReadOnly}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="role" className="text-left">
               Role
             </Label>
-            <Select value={userRole} onValueChange={setUserRole}>
+            <Select
+              value={userRole}
+              onValueChange={setUserRole}
+              disabled={isReadOnly}
+            >
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Pilih Role" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Superuser">Superuser</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="PIC">PIC</SelectItem>
-                <SelectItem value="Production Planning">
-                  Production Planning
-                </SelectItem>
-                <SelectItem value="External/Vendor">External/Vendor</SelectItem>
+                <SelectItem value="Vendor">Vendor</SelectItem>
+                <SelectItem value="Viewer">Viewer</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -193,7 +200,11 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
                 <Label htmlFor="companyName" className="text-left">
                   Nama Perusahaan
                 </Label>
-                <Select value={companyName} onValueChange={setCompanyName}>
+                <Select
+                  value={companyName}
+                  onValueChange={setCompanyName}
+                  disabled={isReadOnly}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Perusahaan" />
                   </SelectTrigger>
@@ -216,7 +227,11 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
                 <Label htmlFor="vendorType" className="text-left">
                   Tipe Vendor
                 </Label>
-                <Select value={vendorType} onValueChange={setVendorType}>
+                <Select
+                  value={vendorType}
+                  onValueChange={setVendorType}
+                  disabled={isReadOnly}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Tipe Vendor" />
                   </SelectTrigger>
@@ -244,7 +259,7 @@ export function AddUserModal({ setIsOpen, onUserAdded }: AddUserModalProps) {
         <Button variant="outline" onClick={() => setIsOpen(false)}>
           Batal
         </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
+        <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
           {isLoading ? "Menyimpan..." : "Simpan Pengguna"}
         </Button>
       </DialogFooter>

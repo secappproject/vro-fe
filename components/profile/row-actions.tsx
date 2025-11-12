@@ -1,4 +1,4 @@
-"use-client";
+"use client";
 
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
@@ -19,20 +19,27 @@ import { EditUserModal } from "./edit-user-modal";
 
 interface DataTableRowActionsProps {
   user: User;
-  onUserUpdated: (updatedUser: User) => void; 
+  onUserUpdated: (updatedUser: User) => void;
   onUserDeleted: (userId: number) => void;
 }
 
 export function DataTableRowActions({
   user,
-  onUserUpdated, 
-  onUserDeleted, 
+  onUserUpdated,
+  onUserDeleted,
 }: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const currentUser = useAuthStore((state) => state.username);
+  const { role: authRole } = useAuthStore();
 
   const isSelf = currentUser === user.username;
+
+  if (authRole === "Viewer") {
+    return null;
+  }
+
+  const isReadOnly = authRole === "Admin" || authRole === "Vendor";
 
   return (
     <>
@@ -47,12 +54,12 @@ export function DataTableRowActions({
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            Edit Pengguna
+            {isReadOnly ? "Lihat Pengguna" : "Edit Pengguna"}
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600"
             onSelect={() => setIsDeleteAlertOpen(true)}
-            disabled={isSelf}
+            disabled={isSelf || isReadOnly}
           >
             Hapus Pengguna
           </DropdownMenuItem>
@@ -73,7 +80,7 @@ export function DataTableRowActions({
         <DeleteUserAlert
           user={user}
           setIsOpen={setIsDeleteAlertOpen}
-          onUserDeleted={onUserDeleted} 
+          onUserDeleted={onUserDeleted}
         />
       </AlertDialog>
     </>

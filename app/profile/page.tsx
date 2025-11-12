@@ -19,7 +19,7 @@ export default function ProfilePage() {
     return <ProfileSkeleton />
   }
 
-  if (role === "Admin") {
+  if (role === "Superuser" || role === "Admin") {
     return <AdminProfileView />;
   } else {
     return <UserProfileView />;

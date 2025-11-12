@@ -1,4 +1,4 @@
-"use client";
+"use-client";
 
 import { useState, useMemo, useEffect } from "react";
 import { useAuthStore, Material, MaterialBin } from "@/lib/types";
@@ -53,7 +53,7 @@ interface FormErrors {
   currentQuantity?: string;
   pic?: string;
   general?: string;
-  vendorStock?: string; // <-- Tambah
+  vendorStock?: string;
   [key: string]: string | undefined;
 }
 
@@ -81,13 +81,12 @@ export function EditMaterialModal({
   );
   const [vendorStock, setVendorStock] = useState(
     String(material.vendorStock ?? 0)
-  ); // <-- Tambah state
+  );
 
   const [packQuantity, setPackQuantity] = useState(
     String(material.packQuantity)
   );
   const [maxBinQty, setMaxBinQty] = useState(String(material.maxBinQty));
-  const [minBinQty, setMinBinQty] = useState(String(material.minBinQty));
 
   const [quantityPerBin, setQuantityPerBin] = useState(
     String(material.bins?.[0]?.maxBinStock || material.packQuantity)
@@ -114,6 +113,9 @@ export function EditMaterialModal({
     material.bins ? JSON.parse(JSON.stringify(material.bins)) : []
   );
 
+  const isReadOnly =
+    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+
   const {
     nPackQty,
     nMinBinQty,
@@ -139,10 +141,9 @@ export function EditMaterialModal({
       nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
       nMinBinQty = nPackQty;
     } else {
-      const initialMinBinQty = parseInt(minBinQty, 10) || 0;
       nTotalBinsMemo = parseInt(totalBins, 10) || 0;
       nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
-      nMinBinQty = roundUpToPack(initialMinBinQty, nPackQty);
+      nMinBinQty = nPackQty;
     }
 
     return {
@@ -156,14 +157,13 @@ export function EditMaterialModal({
     packQuantity,
     quantityPerBin,
     maxBinQty,
-    minBinQty,
     totalBins,
     productType,
   ]);
-  
+
   const nVendorStock = useMemo(() => parseInt(vendorStock, 10) || 0, [
     vendorStock,
-  ]); // <-- Tambah memo
+  ]);
 
   useEffect(() => {
     if (productType === "kanban") {
@@ -201,7 +201,6 @@ export function EditMaterialModal({
   }, [bins, productType, kanbanCurrentQuantity]);
 
   const stockHasChanged = useMemo(() => {
-    // Cek SOH ATAU Vendor Stock
     return (
       nCurrentQuantity !== material.currentQuantity ||
       nVendorStock !== (material.vendorStock ?? 0)
@@ -274,7 +273,7 @@ export function EditMaterialModal({
       maxBinQty: nMaxBinQty,
       minBinQty: nMinBinQty,
       currentQuantity: nCurrentQuantity,
-      vendorStock: nVendorStock, // <-- Tambah
+      vendorStock: nVendorStock,
       bins: productType === "kanban" ? undefined : bins,
     };
   }, [
@@ -289,7 +288,7 @@ export function EditMaterialModal({
     nMinBinQty,
     nCurrentQuantity,
     bins,
-    nVendorStock, // <-- Tambah
+    nVendorStock,
   ]);
 
   const autoFixKelipatan = () => {
@@ -307,11 +306,11 @@ export function EditMaterialModal({
     const finalNewQtyPerBin = Math.ceil(finalTargetMax / nTotalBinsMemo);
 
     setQuantityPerBin(String(finalNewQtyPerBin));
-    
+
     clearError("general");
     setShowKelipatanError(false);
   };
-  
+
   const validate = (): boolean => {
     setShowKelipatanError(false);
     const newErrors: FormErrors = {};
@@ -329,7 +328,7 @@ export function EditMaterialModal({
       newErrors.packQuantity = "Pack Qty harus > 0.";
     }
 
-    if (nVendorStock < 0) { // <-- Tambah
+    if (nVendorStock < 0) {
       newErrors.vendorStock = "Vendor Stock tidak boleh negatif.";
     }
 
@@ -353,9 +352,6 @@ export function EditMaterialModal({
       }
       if (nQuantityPerBinMemo <= 0) {
         newErrors.quantityPerBin = "Qty per Bin harus > 0.";
-      }
-      if (parseInt(minBinQty, 10) < 0) {
-        newErrors.minBinQty = "Min Qty tidak boleh negatif.";
       }
     }
 
@@ -422,7 +418,7 @@ export function EditMaterialModal({
         maxBinQty: nMaxBinQty,
         minBinQty: nMinBinQty,
         vendorCode,
-        vendorStock: nVendorStock, // <-- Tambah
+        vendorStock: nVendorStock,
         currentQuantity: nCurrentQuantity,
         pic: pic,
         productType: productType,
@@ -472,14 +468,17 @@ export function EditMaterialModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Edit Material: {material.material}</DialogTitle>
+        <DialogTitle>
+          {isReadOnly ? "Lihat Material" : "Edit Material"}: {material.material}
+        </DialogTitle>
         <DialogDescription>
-          Ubah detail material, kuantitas, dan vendor di bawah ini.
+          {isReadOnly
+            ? "Lihat detail material, kuantitas, dan vendor di bawah ini."
+            : "Ubah detail material, kuantitas, dan vendor di bawah ini."}
         </DialogDescription>
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-        {/* ... (Input Kode Material, Deskripsi, Lokasi, Tipe, Stok) ... */}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
@@ -493,6 +492,7 @@ export function EditMaterialModal({
                 clearError("materialCode");
               }}
               className={errors.materialCode ? "border-destructive" : ""}
+              disabled={isReadOnly}
             />
             {errors.materialCode && (
               <p className="text-xs text-destructive mt-1">
@@ -511,6 +511,7 @@ export function EditMaterialModal({
             onChange={(e) => setMaterialDescription(e.target.value)}
             className="col-span-3"
             placeholder="(Opsional)"
+            disabled={isReadOnly}
           />
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
@@ -523,6 +524,7 @@ export function EditMaterialModal({
             onChange={(e) => setLocation(e.target.value)}
             className="col-span-3"
             placeholder="(Opsional)"
+            disabled={isReadOnly}
           />
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
@@ -531,9 +533,14 @@ export function EditMaterialModal({
           </Label>
           <Select
             value={productType}
-            onValueChange={(value: string) =>
-              setProductType(value as "kanban" | "consumable" | "option")
-            }
+            onValueChange={(value: string) => {
+              const newType = value as "kanban" | "consumable" | "option";
+              setProductType(newType);
+              if (newType === "option") {
+                setQuantityPerBin("1");
+              }
+            }}
+            disabled={isReadOnly}
           >
             <SelectTrigger className="col-span-3">
               <SelectValue placeholder="Pilih Tipe" />
@@ -567,6 +574,7 @@ export function EditMaterialModal({
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
+                disabled={isReadOnly}
               />
               {errors.currentQuantity && (
                 <p className="text-xs text-destructive mt-1">
@@ -576,8 +584,7 @@ export function EditMaterialModal({
             </div>
           </div>
         )}
-        
-        {/* ... (Input PIC) ... */}
+
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="pic" className="text-left pt-2">
             PIC
@@ -598,6 +605,7 @@ export function EditMaterialModal({
                   : ""
               }
               placeholder="Nama Anda (Wajib jika stok berubah)"
+              disabled={isReadOnly}
             />
             {errors.pic && (
               <p className="text-xs text-destructive mt-1">{errors.pic}</p>
@@ -605,7 +613,6 @@ export function EditMaterialModal({
           </div>
         </div>
 
-        {/* --- INPUT BARU VENDOR STOCK --- */}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="vendorStock" className="text-left pt-2">
             Vendor Stock
@@ -628,6 +635,7 @@ export function EditMaterialModal({
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
+              disabled={isReadOnly}
             />
             {errors.vendorStock && (
               <p className="text-xs text-destructive mt-1">
@@ -642,10 +650,7 @@ export function EditMaterialModal({
               )}
           </div>
         </div>
-        {/* --------------------------- */}
 
-
-        {/* ... (Input Pack Qty, Max, Total Bins, Qty/Bin, Min Qty) ... */}
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -659,6 +664,7 @@ export function EditMaterialModal({
               }}
               placeholder="Qty per scan"
               className={errors.packQuantity ? "border-destructive" : ""}
+              disabled={isReadOnly}
             />
             {errors.packQuantity && (
               <p className="text-xs text-destructive mt-1">
@@ -679,6 +685,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Kapasitas total"
                 className={errors.maxBinQty ? "border-destructive" : ""}
+                disabled={isReadOnly}
               />
               {errors.maxBinQty && (
                 <p className="text-xs text-destructive mt-1">
@@ -700,6 +707,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Jumlah bin"
                 className={errors.totalBins ? "border-destructive" : ""}
+                disabled={isReadOnly}
               />
               {errors.totalBins && (
                 <p className="text-xs text-destructive mt-1">
@@ -721,6 +729,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Kapasitas per bin"
                 className={errors.quantityPerBin ? "border-destructive" : ""}
+                disabled={isReadOnly}
               />
               {errors.quantityPerBin && (
                 <p className="text-xs text-destructive mt-1">
@@ -729,29 +738,8 @@ export function EditMaterialModal({
               )}
             </div>
           )}
-          {productType === "option" && (
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="minQty">Min Qty (Trigger)</Label>
-              <Input
-                id="minQty"
-                type="number"
-                value={minBinQty}
-                onChange={(e) => {
-                  setMinBinQty(e.target.value);
-                  clearError("minBinQty");
-                }}
-                placeholder="Titik trigger 'merah'"
-                className={errors.minBinQty ? "border-destructive" : ""}
-              />
-              {errors.minBinQty && (
-                <p className="text-xs text-destructive mt-1">
-                  {errors.minBinQty}
-                </p>
-              )}
-            </div>
-          )}
         </div>
-        
+
         {errors.general && (
           <div className="col-span-4 my-2 text-sm text-destructive text-center p-2 bg-destructive/10 rounded-md">
             <p>{errors.general}</p>
@@ -762,6 +750,7 @@ export function EditMaterialModal({
                 size="sm"
                 className="mt-2"
                 onClick={autoFixKelipatan}
+                disabled={isReadOnly}
               >
                 <Wand2 className="mr-2 h-4 w-4" />
                 Otomatis Bulatkan Qty per Bin
@@ -784,7 +773,9 @@ export function EditMaterialModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleSetAllBins(0)}
-                disabled={nQuantityPerBinMemo <= 0 && bins.length > 0}
+                disabled={
+                  (nQuantityPerBinMemo <= 0 && bins.length > 0) || isReadOnly
+                }
               >
                 Empty All Bins (Set to 0)
               </Button>
@@ -793,7 +784,7 @@ export function EditMaterialModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleSetAllBins(nQuantityPerBinMemo)}
-                disabled={nQuantityPerBinMemo <= 0}
+                disabled={nQuantityPerBinMemo <= 0 || isReadOnly}
               >
                 Fill All Bins (Set to {nQuantityPerBinMemo || 0})
               </Button>
@@ -815,6 +806,7 @@ export function EditMaterialModal({
                     className={
                       errors[`bin_${index}`] ? "border-destructive" : ""
                     }
+                    disabled={isReadOnly}
                   />
                   {errors[`bin_${index}`] && (
                     <p className="text-xs text-destructive">
@@ -889,6 +881,7 @@ export function EditMaterialModal({
                 setVendorCode(value);
                 clearError("vendorCode");
               }}
+              disabled={isReadOnly}
             >
               <SelectTrigger
                 className={errors.vendorCode ? "border-destructive" : ""}
@@ -914,11 +907,13 @@ export function EditMaterialModal({
 
       <DialogFooter>
         <Button variant="outline" onClick={() => setIsOpen(false)}>
-          Batal
+          {isReadOnly ? "Tutup" : "Batal"}
         </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
+            {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );

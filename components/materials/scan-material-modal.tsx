@@ -20,11 +20,11 @@ import {
 } from "@/components/ui/table";
 import { Trash2 } from "lucide-react";
 import { Label } from "../ui/label";
-import { MaterialBin } from "@/lib/types"; // <-- Import MaterialBin
+import { MaterialBin, MaterialStatusResponse } from "@/lib/types"; // <-- Import MaterialStatusResponse
 
 // --- Komponen BinPreview BARU (Berbasis Segmen) ---
 interface BinPreviewProps {
-  baseData: ApiStatusResponse; // Menggunakan ApiStatusResponse
+  baseData: MaterialStatusResponse; // Menggunakan MaterialStatusResponse
   simulatedBins: Map<number, number>; // Menggunakan map simulasi
   simulatedTotal: number;
 }
@@ -119,6 +119,43 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
           );
         })}
       </div>
+
+      {/* --- SECTION LABEL BIN DITAMBAHKAN --- */}
+      <div className="flex space-x-1 mt-1">
+        {binIds.map((binId, index) => {
+          let currentBinStock = 0;
+          let maxBinStock = qtyPerSegment; // Ini adalah packQuantity atau quantityPerBin
+
+          if (productType === 'kanban') {
+            const binStartQty = index * qtyPerSegment;
+            const binEndQty = (index + 1) * qtyPerSegment;
+            if (current >= binEndQty) {
+              currentBinStock = qtyPerSegment;
+            } else if (current > binStartQty) {
+              currentBinStock = current - binStartQty;
+            }
+          } else {
+            currentBinStock = simulatedBins.get(binId) || 0;
+          }
+          
+          const isFilled = currentBinStock > 0;
+
+          return (
+            <div
+              key={binId}
+              className="flex-1 text-center font-mono text-[10px] leading-tight"
+            >
+              <div className="text-gray-500 text-[9px]">
+                B{binId}
+              </div>
+              <span className={isFilled ? "font-bold" : "text-gray-400"}>
+                {currentBinStock}/{maxBinStock}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {/* --- END SECTION LABEL BIN --- */}
     </div>
   );
 }
@@ -207,7 +244,7 @@ type ScanEntry = {
   status: "idle" | "loading" | "success" | "error";
   
   // Data statis dari API
-  baseData: ApiStatusResponse | null;
+  baseData: MaterialStatusResponse | null;
   // Data simulasi yang diupdate per baris
   simulatedBins: Map<number, number>; 
   simulatedTotal: number;
@@ -230,16 +267,7 @@ interface ScanMaterialModalProps {
   onScansSaved: () => void;
 }
 
-// --- Interface API Response diperbarui ---
-interface ApiStatusResponse {
-  packQuantity: number;
-  maxBinQty: number;
-  minBinQty: number;
-  currentQuantity: number;
-  productType: "kanban" | "consumable" | "option";
-  quantityPerBin: number;
-  bins: MaterialBin[] | null; // <-- WAJIB ADA
-}
+// ApiStatusResponse sudah di-import dari types.ts
 
 const newEmptyScan = (): ScanEntry => ({
   id: Date.now(),
@@ -282,7 +310,7 @@ export function AutoScanMaterialModal({
         })
       );
 
-      let baseData: ApiStatusResponse;
+      let baseData: MaterialStatusResponse;
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/materials/status?code=${materialCodeToValidate}`,
@@ -366,12 +394,16 @@ export function AutoScanMaterialModal({
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = parseInt(inputQty, 10) * packQuantity;
                 finalRawScan = `${parsed.materialCode}_OUT_${parsed.binId}_${inputQty}`;
+              
+              // --- PERUBAHAN DI SINI ---
               } else if (productType === "option") {
                 showQtyInput = true;
-                qtyInputLabel = "PCS";
-                predictedQtyPcs = parseInt(inputQty, 10);
+                qtyInputLabel = "Packs"; // <-- Diubah dari PCS
+                predictedQtyPcs = parseInt(inputQty, 10) * packQuantity; // <-- Diubah, dikali packQuantity
                 finalRawScan = `${parsed.materialCode}_OUT_${parsed.binId}_${inputQty}`;
               }
+              // ---------------------------
+
             } else if (parsed.format === "OUT_EXPLICIT") {
               const explicitQty = parsed.quantity!;
               inputQty = String(explicitQty);
@@ -383,11 +415,14 @@ export function AutoScanMaterialModal({
                 showQtyInput = true;
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = explicitQty * packQuantity;
+              
+              // --- PERUBAHAN DI SINI ---
               } else if (productType === "option") {
                 showQtyInput = true;
-                qtyInputLabel = "PCS";
-                predictedQtyPcs = explicitQty;
+                qtyInputLabel = "Packs"; // <-- Diubah dari PCS
+                predictedQtyPcs = explicitQty * packQuantity; // <-- Diubah, dikali packQuantity
               }
+              // ---------------------------
             }
           }
 
@@ -515,9 +550,12 @@ export function AutoScanMaterialModal({
            const { productType, packQuantity } = scan.baseData;
            if (productType === 'consumable') {
               newPredictedQtyPcs = qtyValue * packQuantity;
+           
+           // --- PERUBAHAN DI SINI ---
            } else if (productType === 'option') {
-              newPredictedQtyPcs = qtyValue;
+              newPredictedQtyPcs = qtyValue * packQuantity; // <-- Diubah, dikali packQuantity
            }
+           // ---------------------------
          }
          
          const newFinalRawScan = `${scan.parsed.materialCode}_OUT_${scan.parsed.binId}_${qtyValue <= 0 ? "" : qtyValue}`;
@@ -761,8 +799,14 @@ export function AutoScanMaterialModal({
                         </span>
                         {scan.showQtyInput && (
                            <div className="space-y-1">
+                             {/* --- LABEL QTY DIPERBARUI --- */}
                              <Label htmlFor={`qty-${scan.id}`} className="text-xs">
                                Qty ({scan.qtyInputLabel})
+                               {scan.qtyInputLabel === "Packs" && scan.baseData && (
+                                <span className="text-muted-foreground font-normal ml-1">
+                                  (1 Pack = {scan.baseData.packQuantity} Pcs)
+                                </span>
+                              )}
                              </Label>
                              <Input
                                id={`qty-${scan.id}`}

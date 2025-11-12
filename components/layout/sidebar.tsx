@@ -16,16 +16,32 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
   const { username, role, companyName } = useAuthStore();
 
   const allNavLinks = [
-    { href: "/materials", label: "Rpl. Stock Monitoring", icon: ToolCase, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
-    { href: "/vendors", label: "Vendor", icon: Building2, allowedRoles: ['Admin'] },
-    { href: "/profile", label: "User", icon: User, allowedRoles: ['Admin', 'PIC', 'Production Planning', 'External/Vendor'] },
+    { 
+      href: "/materials", 
+      label: "Rpl. Stock Monitoring", 
+      icon: ToolCase, 
+      allowedRoles: ['Superuser', 'Admin', 'Vendor', 'Viewer']
+    },
+    { 
+      href: "/vendors", 
+      label: "Vendor", 
+      icon: Building2, 
+      allowedRoles: ['Superuser', 'Admin']
+    },
+    { 
+      href: "/profile", 
+      label: "User", 
+      icon: User, 
+      allowedRoles: ['Superuser', 'Admin', 'Vendor', 'Viewer']
+    },
   ];
 
   const navLinks = allNavLinks.filter(link => role && link.allowedRoles.includes(role));
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "G";
-  const displayName = role === 'External/Vendor' ? companyName : username;
-  const displayRole = role === 'External/Vendor' ? `Vendor (${companyName})` : role;
+  
+  const displayName = role === 'Vendor' ? companyName : username;
+  const displayRole = role === 'Vendor' ? `Vendor (${companyName})` : role;
 
 
   return (

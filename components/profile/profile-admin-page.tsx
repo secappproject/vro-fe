@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getColumns } from "@/components/profile/columns";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { AddUserModal } from "@/components/profile/add-user-modal"; 
+import { AddUserModal } from "@/components/profile/add-user-modal";
 import { PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Skeleton } from "../ui/skeleton";
@@ -40,7 +40,7 @@ export function AdminProfileView() {
       }
     }
 
-    if (role === "Admin") {
+    if (role === "Admin" || role === "Superuser") {
       getUserData();
     }
   }, [role]);
@@ -94,14 +94,19 @@ export function AdminProfileView() {
               Mengatur semua akun pengguna dalam sistem.
             </p>
           </div>
-          <Button className="flex w-full md:w-52" onClick={() => setIsAddModalOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Tambah Pengguna
-          </Button>
+          {role === "Superuser" && (
+            <Button
+              className="flex w-full md:w-52"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Tambah Pengguna
+            </Button>
+          )}
         </div>
-        
+
         <UserDataTable columns={columns} data={data} />
-        
+
         <AddUserModal
           setIsOpen={setIsAddModalOpen}
           onUserAdded={handleUserAdded}

@@ -48,6 +48,9 @@ export function EditVendorModal({
     isPredefined ? "" : vendor.vendorType
   );
 
+  const isReadOnly =
+    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+
   const handleSubmit = async () => {
     const finalVendorType =
       selectedType === OTHER_VALUE ? customType.trim() : selectedType;
@@ -99,9 +102,13 @@ export function EditVendorModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Edit Vendor: {vendor.companyName}</DialogTitle>
+        <DialogTitle>
+          {isReadOnly ? "Lihat Vendor" : "Edit Vendor"}: {vendor.companyName}
+        </DialogTitle>
         <DialogDescription>
-          Ubah detail perusahaan/vendor di bawah ini.
+          {isReadOnly
+            ? "Lihat detail perusahaan/vendor di bawah ini."
+            : "Ubah detail perusahaan/vendor di bawah ini."}
         </DialogDescription>
       </DialogHeader>
 
@@ -115,14 +122,19 @@ export function EditVendorModal({
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             className="col-span-3"
+            disabled={isReadOnly}
           />
         </div>
-        
+
         <div className="grid grid-cols-4 items-center gap-4">
           <Label htmlFor="vendorTypeSelect" className="text-left">
             Tipe Vendor
           </Label>
-          <Select value={selectedType} onValueChange={setSelectedType}>
+          <Select
+            value={selectedType}
+            onValueChange={setSelectedType}
+            disabled={isReadOnly}
+          >
             <SelectTrigger className="col-span-3">
               <SelectValue placeholder="Pilih tipe" />
             </SelectTrigger>
@@ -148,6 +160,7 @@ export function EditVendorModal({
               onChange={(e) => setCustomType(e.target.value)}
               className="col-span-3"
               placeholder="Masukkan tipe vendor kustom"
+              disabled={isReadOnly}
             />
           </div>
         )}
@@ -155,11 +168,13 @@ export function EditVendorModal({
 
       <DialogFooter>
         <Button variant="outline" onClick={() => setIsOpen(false)}>
-          Batal
+          {isReadOnly ? "Tutup" : "Batal"}
         </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
+            {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );

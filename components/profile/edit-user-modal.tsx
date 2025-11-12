@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, useAuthStore } from "@/lib/types"; 
+import { User, useAuthStore } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -31,7 +31,7 @@ type UserUpdatePayload = {
   role: string;
   companyName: { String: string; Valid: boolean } | null;
   vendorType: { String: string; Valid: boolean } | null;
-  password?: string; 
+  password?: string;
 };
 
 export function EditUserModal({
@@ -43,7 +43,7 @@ export function EditUserModal({
   const authRole = useAuthStore((state) => state.role);
 
   const [username, setUsername] = useState(user.username);
-  const [password, setPassword] = useState(""); 
+  const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState(user.role);
   const [companyName, setCompanyName] = useState(user.companyName?.String || "");
   const [vendorType, setVendorType] = useState(user.vendorType?.String || "");
@@ -51,7 +51,10 @@ export function EditUserModal({
   const [companies, setCompanies] = useState<string[]>([]);
   const [vendorTypes, setVendorTypes] = useState<string[]>([]);
 
-  const isVendor = userRole === "External/Vendor";
+  const isVendor = userRole === "Vendor";
+
+  const isReadOnly =
+    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -76,9 +79,9 @@ export function EditUserModal({
         );
         if (compRes.ok) {
           const data: string[] = await compRes.json();
-          
+
           if (currentCompany && !data.includes(currentCompany)) {
-            data.unshift(currentCompany); 
+            data.unshift(currentCompany);
           }
 
           setCompanies(data);
@@ -100,10 +103,9 @@ export function EditUserModal({
 
           setVendorTypes(data);
         } else {
-           console.error("Gagal mengambil daftar tipe vendor");
-           if (currentType) setVendorTypes([currentType]);
+          console.error("Gagal mengambil daftar tipe vendor");
+          if (currentType) setVendorTypes([currentType]);
         }
-
       } catch (error) {
         console.error("Gagal mengambil opsi dropdown:", error);
         if (currentCompany) setCompanies([currentCompany]);
@@ -129,7 +131,9 @@ export function EditUserModal({
       };
 
       if (isVendor && (!companyName || !vendorType)) {
-        throw new Error("Nama Perusahaan dan Tipe Vendor harus diisi untuk role Vendor.");
+        throw new Error(
+          "Nama Perusahaan dan Tipe Vendor harus diisi untuk role Vendor."
+        );
       }
 
       if (password.trim() !== "") {
@@ -167,7 +171,7 @@ export function EditUserModal({
         },
       };
 
-      onUserUpdated(updatedUser); 
+      onUserUpdated(updatedUser);
       setIsOpen(false);
     } catch (error) {
       console.error("Error updating user:", error);
@@ -180,9 +184,13 @@ export function EditUserModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Edit Pengguna: {user.username}</DialogTitle>
+        <DialogTitle>
+          {isReadOnly ? "Lihat Pengguna" : "Edit Pengguna"}: {user.username}
+        </DialogTitle>
         <DialogDescription>
-          Ubah detail pengguna di bawah ini.
+          {isReadOnly
+            ? "Lihat detail pengguna di bawah ini."
+            : "Ubah detail pengguna di bawah ini."}
         </DialogDescription>
       </DialogHeader>
 
@@ -197,6 +205,7 @@ export function EditUserModal({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="col-span-3"
+              disabled={isReadOnly}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -210,23 +219,26 @@ export function EditUserModal({
               onChange={(e) => setPassword(e.target.value)}
               className="col-span-3"
               placeholder="Kosongkan jika tidak ganti"
+              disabled={isReadOnly}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="role" className="text-left">
               Role
             </Label>
-            <Select value={userRole} onValueChange={setUserRole}>
+            <Select
+              value={userRole}
+              onValueChange={setUserRole}
+              disabled={isReadOnly}
+            >
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Pilih Role" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Superuser">Superuser</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="PIC">PIC</SelectItem>
-                <SelectItem value="Production Planning">
-                  Production Planning
-                </SelectItem>
-                <SelectItem value="External/Vendor">External/Vendor</SelectItem>
+                <SelectItem value="Vendor">Vendor</SelectItem>
+                <SelectItem value="Viewer">Viewer</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -237,13 +249,19 @@ export function EditUserModal({
                 <Label htmlFor="companyName" className="text-left">
                   Nama Perusahaan
                 </Label>
-                <Select value={companyName} onValueChange={setCompanyName}>
+                <Select
+                  value={companyName}
+                  onValueChange={setCompanyName}
+                  disabled={isReadOnly}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Perusahaan" />
                   </SelectTrigger>
                   <SelectContent>
                     {companies.length === 0 ? (
-                       <SelectItem value="loading" disabled>Memuat...</SelectItem>
+                      <SelectItem value="loading" disabled>
+                        Memuat...
+                      </SelectItem>
                     ) : (
                       companies.map((company) => (
                         <SelectItem key={company} value={company}>
@@ -259,13 +277,19 @@ export function EditUserModal({
                 <Label htmlFor="vendorType" className="text-left">
                   Tipe Vendor
                 </Label>
-                <Select value={vendorType} onValueChange={setVendorType}>
+                <Select
+                  value={vendorType}
+                  onValueChange={setVendorType}
+                  disabled={isReadOnly}
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Tipe Vendor" />
                   </SelectTrigger>
                   <SelectContent>
-                     {vendorTypes.length === 0 ? (
-                       <SelectItem value="loading" disabled>Memuat...</SelectItem>
+                    {vendorTypes.length === 0 ? (
+                      <SelectItem value="loading" disabled>
+                        Memuat...
+                      </SelectItem>
                     ) : (
                       vendorTypes.map((vtype) => (
                         <SelectItem key={vtype} value={vtype}>
@@ -283,11 +307,13 @@ export function EditUserModal({
 
       <DialogFooter>
         <Button variant="outline" onClick={() => setIsOpen(false)}>
-          Batal
+          {isReadOnly ? "Tutup" : "Batal"}
         </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
+            {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );
