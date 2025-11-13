@@ -73,7 +73,10 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
 
   const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
-    const filterWords = String(filterValue).toLowerCase().split(" ").filter(Boolean);
+    const filterWords = String(filterValue)
+      .toLowerCase()
+      .split(" ")
+      .filter(Boolean);
     if (filterWords.length === 0) return true;
 
     const rowText = row
@@ -153,7 +156,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
   };
 
   const handleExtract = () => {
-    const rows = table.getRowModel().rows;
+    const rows = table.getFilteredRowModel().rows;
+    
     if (rows.length === 0) {
       alert("Tidak ada data terfilter untuk diekstrak.");
       return;
@@ -162,30 +166,51 @@ export function MaterialDataTable<TData extends Material, TValue>({
     const headers = [
       "Kode Material",
       "Deskripsi",
-      "Stok Bin",
+      "SoH (Total Stok)", 
+      "Replenishment (Bin Kosong)", 
       "Remark",
       "Vendor",
+      "Vendor Stock", 
       "Lokasi",
       "Tipe",
       "Min Qty",
       "Pack Qty",
       "Max Qty",
       "Total Bins",
+      "PIC", 
+      "Rincian Stok Bin" 
     ];
 
-    const dataToExport = rows.map((row) => [
-      row.getValue("material"),
-      row.getValue("materialDescription"),
-      row.getValue("currentQuantity"),
-      row.getValue("remark"),
-      row.getValue("vendorCode"),
-      row.getValue("lokasi"),
-      row.getValue("productType"), 
-      row.getValue("minBinQty"),
-      row.getValue("packQuantity"),
-      row.getValue("maxBinQty"),
-      row.getValue("totalBins"),
-    ]);
+    const dataToExport = rows.map((row) => {
+      const original = row.original;
+      
+      let binDetails = "-";
+      if (original.productType !== "kanban" && original.bins && original.bins.length > 0) {
+        binDetails = original.bins
+          .map(b => `Bin ${b.binSequenceId}: ${b.currentBinStock}`)
+          .join(" | ");
+      } else if (original.productType === "kanban") {
+        binDetails = "Kanban System";
+      }
+
+      return [
+        row.getValue("material"),
+        row.getValue("materialDescription"),
+        row.getValue("soh"), 
+        row.getValue("replenishment"), 
+        row.getValue("remark"),
+        row.getValue("vendorCode"),
+        row.getValue("vendorStock"), 
+        row.getValue("lokasi"),
+        row.getValue("productType"),
+        row.getValue("minBinQty"),
+        row.getValue("packQuantity"),
+        row.getValue("maxBinQty"),
+        row.getValue("totalBins"),
+        row.getValue("pic"),
+        binDetails // Masukkan data rincian bin di kolom terakhir
+      ];
+    });
 
     const escapeCsvCell = (cell: unknown) => {
       const str = String(cell ?? "");
@@ -316,7 +341,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
             title="Stok Bin"
           />
         )}
-        {productTypeColumn && ( 
+        {productTypeColumn && (
           <DataTableFacetedFilter
             column={productTypeColumn}
             title="Tipe"

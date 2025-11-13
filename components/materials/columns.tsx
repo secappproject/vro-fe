@@ -77,7 +77,6 @@ export const getMaterialColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Replenishment" />
     ),
-    // --- LOGIKA REPLENISHMENT DIPERBARUI ---
     accessorFn: (row) => {
       const {
         productType,
@@ -90,22 +89,17 @@ export const getMaterialColumns = (
       if (productType === "kanban") {
         if (packQuantity <= 0 || maxBinQty <= 0) return null;
         const totalBins = Math.ceil(maxBinQty / packQuantity);
-        // Hitung berapa bin yang "tersentuh" (memiliki stok > 0)
         const occupiedBins = Math.ceil(currentQuantity / packQuantity);
         return totalBins - occupiedBins;
       } 
       
-      // Consumable or Option
       if (!bins) {
-         // Jika material baru/belum ada data bin, anggap 0
          return 0; 
       }
       
-      // Hitung bin yang stoknya 0
       const emptyBins = bins.filter(bin => bin.currentBinStock === 0).length;
       return emptyBins;
     },
-    // -------------------------------------
     cell: ({ row }) => {
       const value = row.getValue("replenishment");
 
@@ -182,14 +176,11 @@ export const getMaterialColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Vendor Stock" />
     ),
-    // --- LOGIKA VENDOR STOCK DIPERBARUI (Mengacu pada Replenishment) ---
     cell: ({ row }) => {
       const stock = (row.getValue("vendorStock") as number | null) ?? 0;
       
-      // --- 1. Ambil data untuk kalkulasi ---
       const { productType, maxBinQty, packQuantity, bins, currentQuantity } = row.original;
 
-      // --- 2. Hitung Total Bins ---
       let totalBins = 0;
       if (productType === "kanban") {
           if (packQuantity > 0) totalBins = Math.ceil(maxBinQty / packQuantity);
@@ -197,7 +188,6 @@ export const getMaterialColumns = (
           totalBins = bins.length;
       }
 
-      // --- 3. Hitung Replenishment (Bin Kosong) ---
       let replenishment: number | null = null;
       if (productType === "kanban") {
         if (packQuantity <= 0 || maxBinQty <= 0) {
@@ -214,26 +204,21 @@ export const getMaterialColumns = (
         }
       }
 
-      // --- 4. Terapkan Logika Pewarnaan ---
       let colorClass = "";
       if (replenishment !== null && totalBins > 0) {
         const halfTotal = totalBins * 0.5;
 
         if (replenishment <= 1) {
-          // 0 atau 1 bin kosong
-          colorClass = "text-red-600 font-medium"; // Merah
+          colorClass = "text-red-600 font-medium"; 
         } else if (replenishment > halfTotal) {
-          // > 50% bin kosong
-          colorClass = "text-green-600 font-medium"; // Ijo
+          colorClass = "text-green-600 font-medium";
         } else {
-          // Antara 2 s/d 50% bin kosong
-          colorClass = "text-yellow-600 font-medium"; // Oren
+          colorClass = "text-yellow-600 font-medium";
         }
       }
 
       return <span className={colorClass}>{stock}</span>;
     },
-    // ------------------------------------
     enableSorting: true,
   },
   {
