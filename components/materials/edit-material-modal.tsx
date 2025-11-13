@@ -554,7 +554,7 @@ export function EditMaterialModal({
                 setQuantityPerBin("1");
               }
             }}
-            disabled={isViewer}
+            disabled={isViewer || isGeneralInfoRestricted}
           >
             <SelectTrigger className="col-span-3">
               <SelectValue placeholder="Pilih Tipe" />
