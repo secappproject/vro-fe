@@ -89,7 +89,7 @@ export function MaterialPage() {
   );
 
   const canScan =
-    role === "Superuser" || role === "Admin" || role === "Vendor";
+    role === "Superuser" || role === "Admin" ;
   const canImport = role === "Superuser";
   const canAdd = role === "Superuser";
 

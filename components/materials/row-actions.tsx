@@ -36,7 +36,8 @@ export function MaterialDataTableRowActions({
     return null;
   }
 
-  const isReadOnly = authRole === "Admin" || authRole === "Vendor";
+  // Only Superuser can delete materials.
+  const isSuperuser = authRole === "Superuser";
 
   return (
     <>
@@ -51,12 +52,12 @@ export function MaterialDataTableRowActions({
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
-            {isReadOnly ? "Lihat Material" : "Edit Material"}
+            Edit Material
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600"
             onSelect={() => setIsDeleteAlertOpen(true)}
-            disabled={isReadOnly}
+            disabled={!isSuperuser}
           >
             Hapus Material
           </DropdownMenuItem>

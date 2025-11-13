@@ -1,4 +1,4 @@
-"use-client";
+"use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { useAuthStore, Material, MaterialBin } from "@/lib/types";
@@ -113,8 +113,12 @@ export function EditMaterialModal({
     material.bins ? JSON.parse(JSON.stringify(material.bins)) : []
   );
 
-  const isReadOnly =
-    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+  // MODIFIED: isReadOnly is strictly for Viewer. 
+  // Admin and Vendor can edit, but have restrictions on General Info.
+  const isViewer = authRole === "Viewer";
+  
+  // MODIFIED: Admin and Vendor cannot edit general info (Code, Desc, Location)
+  const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
 
   const {
     nPackQty,
@@ -318,6 +322,8 @@ export function EditMaterialModal({
     if (stockHasChanged && !pic.trim()) {
       newErrors.pic = "PIC wajib diisi karena stok berubah.";
     }
+    // Validation still runs, but fields might be disabled.
+    // Backend will ensure consistency if disabled fields are tampered with.
     if (!materialCode.trim()) {
       newErrors.materialCode = "Kode Material wajib diisi.";
     }
@@ -442,6 +448,9 @@ export function EditMaterialModal({
         throw new Error(errorData.error || "Gagal mengupdate material.");
       }
 
+      // If restricted, we trust backend to keep original general info
+      // But for frontend optimisitc update, we keep what was in state
+      // (which matches original if disabled)
       const updatedMaterial: Material = {
         ...material,
         ...payload,
@@ -469,10 +478,10 @@ export function EditMaterialModal({
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>
-          {isReadOnly ? "Lihat Material" : "Edit Material"}: {material.material}
+          {isViewer ? "Lihat Material" : "Edit Material"}: {material.material}
         </DialogTitle>
         <DialogDescription>
-          {isReadOnly
+          {isViewer
             ? "Lihat detail material, kuantitas, dan vendor di bawah ini."
             : "Ubah detail material, kuantitas, dan vendor di bawah ini."}
         </DialogDescription>
@@ -492,12 +501,17 @@ export function EditMaterialModal({
                 clearError("materialCode");
               }}
               className={errors.materialCode ? "border-destructive" : ""}
-              disabled={isReadOnly}
+              disabled={isViewer || isGeneralInfoRestricted}
             />
             {errors.materialCode && (
               <p className="text-xs text-destructive mt-1">
                 {errors.materialCode}
               </p>
+            )}
+            {isGeneralInfoRestricted && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                    Hanya Superuser yang dapat mengubah Kode Material.
+                </p>
             )}
           </div>
         </div>
@@ -511,7 +525,7 @@ export function EditMaterialModal({
             onChange={(e) => setMaterialDescription(e.target.value)}
             className="col-span-3"
             placeholder="(Opsional)"
-            disabled={isReadOnly}
+            disabled={isViewer || isGeneralInfoRestricted}
           />
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
@@ -524,7 +538,7 @@ export function EditMaterialModal({
             onChange={(e) => setLocation(e.target.value)}
             className="col-span-3"
             placeholder="(Opsional)"
-            disabled={isReadOnly}
+            disabled={isViewer || isGeneralInfoRestricted}
           />
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
@@ -540,7 +554,7 @@ export function EditMaterialModal({
                 setQuantityPerBin("1");
               }
             }}
-            disabled={isReadOnly}
+            disabled={isViewer}
           >
             <SelectTrigger className="col-span-3">
               <SelectValue placeholder="Pilih Tipe" />
@@ -574,7 +588,7 @@ export function EditMaterialModal({
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
-                disabled={isReadOnly}
+                disabled={isViewer}
               />
               {errors.currentQuantity && (
                 <p className="text-xs text-destructive mt-1">
@@ -605,7 +619,7 @@ export function EditMaterialModal({
                   : ""
               }
               placeholder="Nama Anda (Wajib jika stok berubah)"
-              disabled={isReadOnly}
+              disabled={isViewer}
             />
             {errors.pic && (
               <p className="text-xs text-destructive mt-1">{errors.pic}</p>
@@ -635,7 +649,7 @@ export function EditMaterialModal({
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
-              disabled={isReadOnly}
+              disabled={isViewer}
             />
             {errors.vendorStock && (
               <p className="text-xs text-destructive mt-1">
@@ -664,7 +678,7 @@ export function EditMaterialModal({
               }}
               placeholder="Qty per scan"
               className={errors.packQuantity ? "border-destructive" : ""}
-              disabled={isReadOnly}
+              disabled={isViewer}
             />
             {errors.packQuantity && (
               <p className="text-xs text-destructive mt-1">
@@ -685,7 +699,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Kapasitas total"
                 className={errors.maxBinQty ? "border-destructive" : ""}
-                disabled={isReadOnly}
+                disabled={isViewer}
               />
               {errors.maxBinQty && (
                 <p className="text-xs text-destructive mt-1">
@@ -707,7 +721,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Jumlah bin"
                 className={errors.totalBins ? "border-destructive" : ""}
-                disabled={isReadOnly}
+                disabled={isViewer}
               />
               {errors.totalBins && (
                 <p className="text-xs text-destructive mt-1">
@@ -729,7 +743,7 @@ export function EditMaterialModal({
                 }}
                 placeholder="Kapasitas per bin"
                 className={errors.quantityPerBin ? "border-destructive" : ""}
-                disabled={isReadOnly}
+                disabled={isViewer}
               />
               {errors.quantityPerBin && (
                 <p className="text-xs text-destructive mt-1">
@@ -750,7 +764,7 @@ export function EditMaterialModal({
                 size="sm"
                 className="mt-2"
                 onClick={autoFixKelipatan}
-                disabled={isReadOnly}
+                disabled={isViewer}
               >
                 <Wand2 className="mr-2 h-4 w-4" />
                 Otomatis Bulatkan Qty per Bin
@@ -774,7 +788,7 @@ export function EditMaterialModal({
                 size="sm"
                 onClick={() => handleSetAllBins(0)}
                 disabled={
-                  (nQuantityPerBinMemo <= 0 && bins.length > 0) || isReadOnly
+                  (nQuantityPerBinMemo <= 0 && bins.length > 0) || isViewer
                 }
               >
                 Empty All Bins (Set to 0)
@@ -784,7 +798,7 @@ export function EditMaterialModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleSetAllBins(nQuantityPerBinMemo)}
-                disabled={nQuantityPerBinMemo <= 0 || isReadOnly}
+                disabled={nQuantityPerBinMemo <= 0 || isViewer}
               >
                 Fill All Bins (Set to {nQuantityPerBinMemo || 0})
               </Button>
@@ -806,7 +820,7 @@ export function EditMaterialModal({
                     className={
                       errors[`bin_${index}`] ? "border-destructive" : ""
                     }
-                    disabled={isReadOnly}
+                    disabled={isViewer}
                   />
                   {errors[`bin_${index}`] && (
                     <p className="text-xs text-destructive">
@@ -881,7 +895,7 @@ export function EditMaterialModal({
                 setVendorCode(value);
                 clearError("vendorCode");
               }}
-              disabled={isReadOnly}
+              disabled={isViewer}
             >
               <SelectTrigger
                 className={errors.vendorCode ? "border-destructive" : ""}
@@ -907,10 +921,10 @@ export function EditMaterialModal({
 
       <DialogFooter>
         <Button variant="outline" onClick={() => setIsOpen(false)}>
-          {isReadOnly ? "Tutup" : "Batal"}
+          {isViewer ? "Tutup" : "Batal"}
         </Button>
-        {!isReadOnly && (
-          <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
+        {!isViewer && (
+          <Button onClick={handleSubmit} disabled={isLoading || isViewer}>
             {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         )}
