@@ -120,11 +120,10 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
         })}
       </div>
 
-      {/* --- SECTION LABEL BIN DITAMBAHKAN --- */}
       <div className="flex space-x-1 mt-1">
         {binIds.map((binId, index) => {
           let currentBinStock = 0;
-          let maxBinStock = qtyPerSegment; // Ini adalah packQuantity atau quantityPerBin
+          const maxBinStock = qtyPerSegment; 
 
           if (productType === 'kanban') {
             const binStartQty = index * qtyPerSegment;
