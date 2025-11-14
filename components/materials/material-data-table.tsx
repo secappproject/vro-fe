@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   ColumnDef,
   SortingState,
@@ -34,7 +33,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
+} from "@/components/ui/select"; // Path diubah ke alias
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -44,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataTableFacetedFilter } from "./data-table-faceted-filter";
+import React from "react";
 
 interface DataTableProps<TData extends Material, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -157,7 +157,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
   const handleExtract = () => {
     const rows = table.getFilteredRowModel().rows;
-    
+
     if (rows.length === 0) {
       alert("Tidak ada data terfilter untuk diekstrak.");
       return;
@@ -166,28 +166,32 @@ export function MaterialDataTable<TData extends Material, TValue>({
     const headers = [
       "Kode Material",
       "Deskripsi",
-      "SoH (Total Stok)", 
-      "Replenishment (Bin Kosong)", 
+      "SoH (Total Stok)",
+      "Replenishment (Bin Kosong)",
       "Remark",
       "Vendor",
-      "Vendor Stock", 
+      "Vendor Stock",
       "Lokasi",
       "Tipe",
       "Min Qty",
       "Pack Qty",
       "Max Qty",
       "Total Bins",
-      "PIC", 
-      "Rincian Stok Bin" 
+      "PIC",
+      "Rincian Stok Bin",
     ];
 
     const dataToExport = rows.map((row) => {
       const original = row.original;
-      
+
       let binDetails = "-";
-      if (original.productType !== "kanban" && original.bins && original.bins.length > 0) {
+      if (
+        original.productType !== "kanban" &&
+        original.bins &&
+        original.bins.length > 0
+      ) {
         binDetails = original.bins
-          .map(b => `Bin ${b.binSequenceId}: ${b.currentBinStock}`)
+          .map((b) => `Bin ${b.binSequenceId}: ${b.currentBinStock}`)
           .join(" | ");
       } else if (original.productType === "kanban") {
         binDetails = "Kanban System";
@@ -196,11 +200,11 @@ export function MaterialDataTable<TData extends Material, TValue>({
       return [
         row.getValue("material"),
         row.getValue("materialDescription"),
-        row.getValue("soh"), 
-        row.getValue("replenishment"), 
+        row.getValue("soh"),
+        row.getValue("replenishment"),
         row.getValue("remark"),
         row.getValue("vendorCode"),
-        row.getValue("vendorStock"), 
+        row.getValue("vendorStock"),
         row.getValue("lokasi"),
         row.getValue("productType"),
         row.getValue("minBinQty"),
@@ -208,7 +212,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
         row.getValue("maxBinQty"),
         row.getValue("totalBins"),
         row.getValue("pic"),
-        binDetails // Masukkan data rincian bin di kolom terakhir
+        binDetails, // Masukkan data rincian bin di kolom terakhir
       ];
     });
 
@@ -342,16 +346,10 @@ export function MaterialDataTable<TData extends Material, TValue>({
           />
         )}
         {productTypeColumn && (
-          <DataTableFacetedFilter
-            column={productTypeColumn}
-            title="Tipe"
-          />
+          <DataTableFacetedFilter column={productTypeColumn} title="Tipe" />
         )}
         {minBinQtyColumn && (
-          <DataTableFacetedFilter
-            column={minBinQtyColumn}
-            title="Min Qty"
-          />
+          <DataTableFacetedFilter column={minBinQtyColumn} title="Min Qty" />
         )}
         {packQuantityColumn && (
           <DataTableFacetedFilter
@@ -360,22 +358,29 @@ export function MaterialDataTable<TData extends Material, TValue>({
           />
         )}
         {maxBinQtyColumn && (
-          <DataTableFacetedFilter
-            column={maxBinQtyColumn}
-            title="Max Qty"
-          />
+          <DataTableFacetedFilter column={maxBinQtyColumn} title="Max Qty" />
         )}
         {totalBinsColumn && (
-          <DataTableFacetedFilter
-            column={totalBinsColumn}
-            title="Total Bins"
-          />
+          <DataTableFacetedFilter column={totalBinsColumn} title="Total Bins" />
         )}
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
+            {/* BARIS BARU DITAMBAHKAN DI SINI */}
+            <TableRow>
+              <TableHead
+                colSpan={columns.length}
+                className="h-10 align-middle"
+              >
+                <span className="text-sm font-light text-muted-foreground">
+                  Total {table.getFilteredRowModel().rows.length} data
+                </span>
+              </TableHead>
+            </TableRow>
+            {/* AKHIR BARIS BARU */}
+
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -422,6 +427,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </Table>
       </div>
       <div className="flex items-center justify-between py-4">
+        {/* HITUNGAN DI FOOTER DIHAPUS, KEMBALI KE KODE AWAL */}
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
           <Select
@@ -445,7 +451,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
         <div className="flex items-center space-x-4">
           <div className="flex w-[100px] items-center justify-center text-sm font-light">
-            Page {table.getState().pagination.pageIndex + 1} / {" "}
+            Page {table.getState().pagination.pageIndex + 1} /{" "}
             {table.getPageCount()}
           </div>
           <div className="flex items-center space-x-2">
