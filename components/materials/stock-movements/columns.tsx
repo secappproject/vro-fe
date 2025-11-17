@@ -5,9 +5,9 @@ import {
   StockMovement,
   GoSqlNullInt,
   GoSqlNullString,
-} from "@/lib/types"; 
+} from "@/lib/types";
 import { ArrowRight } from "lucide-react";
-import { DataTableColumnHeader } from "@/components/reusable-datatable/column-header"; 
+import { DataTableColumnHeader } from "@/components/reusable-datatable/column-header";
 import { Row } from "@tanstack/react-table";
 
 const customFilterFn = (
@@ -86,7 +86,7 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
       );
     },
     enableColumnFilter: true,
-    filterFn: customFilterFn,  
+    filterFn: customFilterFn,
   },
   {
     accessorKey: "movementType",
@@ -100,19 +100,53 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
         colorClass = "text-green-600";
       } else if (type.includes("OUT")) {
         colorClass = "text-red-600";
-      } else if (type.includes("Edit")) {
+      } else if (type.includes("Edit")) { 
         colorClass = "text-black-600";
       }
       return <span className={`font-medium ${colorClass}`}>{type}</span>;
     },
     enableColumnFilter: true,
-    filterFn: customFilterFn, 
+    filterFn: customFilterFn,
   },
   {
-    id: "quantityFlow",
-    header: "Perubahan Stok",
+    id: "sohChange",
+    header: "Perubahan SOH",
     cell: ({ row }) => {
-      const { oldQuantity, newQuantity, quantityChange } = row.original;
+      const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
+
+      
+      if (movementType === "Edit Vendor Stock") {
+        return <span className="text-muted-foreground">-</span>;
+      }
+
+      const isPositive = quantityChange > 0;
+      return (
+        <div className="flex items-center space-x-2 font-mono">
+          <span>{oldQuantity}</span>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <span className="font-bold">{newQuantity}</span>
+          <span
+            className={`font-bold text-sm ${
+              isPositive ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            ({isPositive ? `+${quantityChange}` : quantityChange})
+          </span>
+        </div>
+      );
+    },
+  },
+  {
+    id: "vendorStockChange",
+    header: "Perubahan Vendor Stok",
+    cell: ({ row }) => {
+      const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
+
+      
+      if (movementType !== "Edit Vendor Stock") {
+        return <span className="text-muted-foreground">-</span>;
+      }
+
       const isPositive = quantityChange > 0;
       return (
         <div className="flex items-center space-x-2 font-mono">
