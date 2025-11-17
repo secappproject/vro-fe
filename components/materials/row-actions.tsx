@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MoreHorizontal, History } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,8 +15,8 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Material, useAuthStore } from "@/lib/types";
-import { DeleteMaterialAlert } from "./delete-material-alert";
-import { EditMaterialModal } from "./edit-material-modal";
+import { DeleteMaterialAlert } from "../materials/delete-material-alert";
+import { EditMaterialModal } from "../materials/edit-material-modal";
 
 interface DataTableRowActionsProps {
   material: Material;
@@ -31,13 +32,17 @@ export function MaterialDataTableRowActions({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const authRole = useAuthStore((state) => state.role);
+  const router = useRouter(); 
 
   if (authRole === "Viewer") {
     return null;
   }
 
-  // Only Superuser can delete materials.
   const isSuperuser = authRole === "Superuser";
+
+  const handleViewHistory = () => {
+    router.push(`/materials/${material.id}`);
+  };
 
   return (
     <>
@@ -51,6 +56,12 @@ export function MaterialDataTableRowActions({
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
           <DropdownMenuSeparator />
+
+          <DropdownMenuItem onSelect={handleViewHistory}>
+            <History className="mr-2 h-4 w-4" />
+            Lihat Histori Stok
+          </DropdownMenuItem>
+
           <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
             Edit Material
           </DropdownMenuItem>

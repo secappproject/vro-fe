@@ -16,6 +16,11 @@ type NullString = {
   Valid: boolean;
 };
 
+type NullInt = {
+  Int64: number;
+  Valid: boolean;
+};
+
 interface DataTableColumnHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   title: string;
@@ -29,10 +34,30 @@ export function DataTableColumnHeader<TData, TValue>({ column, title, className 
     if (val === null || val === undefined) {
       return "(Kosong)";
     }
+    
     if (typeof val === 'object' && val !== null && 'Valid' in val && 'String' in val) {
       const nullString = val as NullString;
       return nullString.Valid ? nullString.String : "(Kosong)";
     }
+
+    if (typeof val === 'object' && val !== null && 'Valid' in val && 'Int64' in val) {
+      const nullInt = val as NullInt;
+      return nullInt.Valid ? `Bin ${nullInt.Int64}` : "(Kosong)";
+    }
+
+    if (typeof val === 'string') {
+      const date = new Date(val);
+      if (!isNaN(date.getTime()) && val.includes('T') && val.includes('Z')) {
+        return date.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    }
+
     return String(val);
   };
 
@@ -43,10 +68,17 @@ export function DataTableColumnHeader<TData, TValue>({ column, title, className 
     if (val === undefined) {
       return "__undefined_key__";
     }
+    
     if (typeof val === 'object' && val !== null && 'Valid' in val && 'String' in val) {
       const nullString = val as NullString;
       return `nullstring_${nullString.Valid}_${nullString.String}`; 
     }
+
+    if (typeof val === 'object' && val !== null && 'Valid' in val && 'Int64' in val) {
+      const nullInt = val as NullInt;
+      return `nullint_${nullInt.Valid}_${nullInt.Int64}`; 
+    }
+
     return String(val);
   };
   

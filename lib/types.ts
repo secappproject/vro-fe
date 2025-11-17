@@ -70,6 +70,28 @@ export interface MaterialStatusResponse {
   bins: MaterialBin[] | null; 
   vendorStock: number;
 }
+export interface GoSqlNullInt {
+  Int64: number;
+  Valid: boolean;
+}
+
+export interface GoSqlNullString {
+  String: string;
+  Valid: boolean;
+}
+export interface StockMovement {
+  id: number;
+  materialId: number;
+  materialCode: string;
+  movementType: "Edit" | "Scan IN" | "Scan OUT";
+  quantityChange: number;
+  oldQuantity: number;
+  newQuantity: number;
+  pic: string;
+  notes: GoSqlNullString; 
+  binSequenceId: GoSqlNullInt;
+  timestamp: string;
+}
 
 export const useAuthStore = create<UserState>()(
   persist(
