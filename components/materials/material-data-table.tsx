@@ -1,5 +1,4 @@
-"use client";
-
+"use client"; 
 import {
   ColumnDef,
   SortingState,
@@ -24,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Material } from "@/lib/types";
+import { Material, useAuthStore } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { UnfoldHorizontalIcon, X, Download } from "lucide-react";
 import {
@@ -33,7 +32,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Path diubah ke alias
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -42,13 +41,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 import React from "react";
+
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface DataTableProps<TData extends Material, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
 }
+
+interface LastDownloadInfo {
+  username: string;
+  timestamp: string; 
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export function MaterialDataTable<TData extends Material, TValue>({
   columns,
@@ -65,12 +87,32 @@ export function MaterialDataTable<TData extends Material, TValue>({
       packQuantity: false,
       maxBinQty: false,
       totalBins: false,
-      pic: false, // Sembunyikan PIC by default
+      pic: false,
     });
 
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [inputValue, setInputValue] = React.useState("");
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
+
+  const [exportFormat, setExportFormat] = React.useState<"csv" | "pdf">("csv");
+  const [pdfOrientation, setPdfOrientation] = React.useState<
+    "portrait" | "landscape"
+  >("portrait");
+
+  const [lastDownloadInfo, setLastDownloadInfo] =
+    React.useState<LastDownloadInfo | null>(null);
+
+  const { username, role, companyName } = useAuthStore((state) => ({
+    username: state.username,
+    role: state.role,
+    companyName: state.companyName,
+  }));
+
+  const authHeaders = {
+    "X-User-Role": role || "",
+    "X-User-Company": companyName || "",
+    "Content-Type": "application/json",
+  };
 
   const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
     const filterWords = String(filterValue)
@@ -129,9 +171,29 @@ export function MaterialDataTable<TData extends Material, TValue>({
     table.setGlobalFilter(combinedFilter);
   }, [filterChips, inputValue, table]);
 
+  const fetchLastDownload = React.useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/logs/last-download`, {
+        method: "GET",
+        headers: authHeaders,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLastDownloadInfo(data); 
+      } else {
+        console.error("Gagal mengambil log download terakhir");
+      }
+    } catch (error) {
+      console.error("Error fetching last download:", error);
+    }
+  }, [role, companyName]); 
+  
+  React.useEffect(() => {
+    fetchLastDownload();
+  }, [fetchLastDownload]);
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const newChip = inputValue.trim().toLowerCase();
-
     if (event.key === "Enter" && newChip !== "") {
       event.preventDefault();
       if (!filterChips.includes(newChip)) {
@@ -155,13 +217,20 @@ export function MaterialDataTable<TData extends Material, TValue>({
     table.setGlobalFilter(undefined);
   };
 
-  const handleExtract = () => {
+  const handleDownload = async () => {
     const rows = table.getFilteredRowModel().rows;
-
     if (rows.length === 0) {
       alert("Tidak ada data terfilter untuk diekstrak.");
       return;
     }
+
+    const now = new Date();
+    const filenameTimestamp = now.toISOString().split("T")[0];
+    const reportTimestamp = now.toLocaleString("id-ID", {
+      dateStyle: "full",
+      timeStyle: "long",
+    });
+
 
     const headers = [
       "Kode Material",
@@ -183,7 +252,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
     const dataToExport = rows.map((row) => {
       const original = row.original;
-
       let binDetails = "-";
       if (
         original.productType !== "kanban" &&
@@ -212,40 +280,81 @@ export function MaterialDataTable<TData extends Material, TValue>({
         row.getValue("maxBinQty"),
         row.getValue("totalBins"),
         row.getValue("pic"),
-        binDetails, // Masukkan data rincian bin di kolom terakhir
+        binDetails,
       ];
     });
 
-    const escapeCsvCell = (cell: unknown) => {
-      const str = String(cell ?? "");
-      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-        return `"${str.replace(/"/g, '""')}"`;
+    if (exportFormat === "csv") {
+      const escapeCsvCell = (cell: unknown) => {
+        const str = String(cell ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      let csvContent = headers.join(",") + "\n";
+      dataToExport.forEach((rowArray) => {
+        csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `material_extract_${filenameTimestamp}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (exportFormat === "pdf") {
+      const doc = new jsPDF(pdfOrientation, "pt", "a4");
+
+      doc.setFontSize(16);
+      doc.text("Laporan Ekstrak Material", 40, 40);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Diekstrak pada: ${reportTimestamp}`, 40, 55);
+
+      autoTable(doc, {
+        startY: 70,
+        head: [headers],
+        body: dataToExport.map((row) => row.map((cell) => String(cell ?? "-"))),
+        theme: "striped",
+        headStyles: { fillColor: [38, 38, 38] },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      doc.save(`material_extract_${filenameTimestamp}.pdf`);
+    }
+
+    if (username) {
+      try {
+        await fetch(`${API_URL}/api/logs/download`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({ username: username }),
+        });
+        fetchLastDownload();
+      } catch (error) {
+        console.error("Gagal mencatat log download:", error);
       }
-      return str;
-    };
-
-    let csvContent = headers.join(",") + "\n";
-    dataToExport.forEach((rowArray) => {
-      csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `material_extract_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2 w-full max-w-lg">
+          {/* ... (Input filter Anda tidak berubah) ... */}
           <div className="flex items-center gap-2">
             <Input
               type="text"
@@ -290,17 +399,90 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto hidden h-9 lg:flex"
-            onClick={handleExtract}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Extract
-          </Button>
+          <div className="flex flex-row items-center gap-2">
+            {/* [DIUBAH] Tampilkan info dari state lastDownloadInfo */}
+            {lastDownloadInfo && (
+              <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                Last Download: {lastDownloadInfo.username} @{" "}
+                {new Date(lastDownloadInfo.timestamp).toLocaleString("id-ID", {
+                  timeStyle: "short",
+                  dateStyle: "short",
+                })}
+              </span>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto hidden h-9 lg:flex"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Extract
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Pilih Format Ekstrak</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Pilih format file dan orientasi halaman untuk PDF.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  {/* ... (Opsi Format File tidak berubah) ... */}
+                  <div className="space-y-2">
+                    <Label>Format File</Label>
+                    <RadioGroup
+                      value={exportFormat}
+                      onValueChange={(value) =>
+                        setExportFormat(value as "csv" | "pdf")
+                      }
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="csv" id="r-csv" />
+                        <Label htmlFor="r-csv">CSV</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="pdf" id="r-pdf" />
+                        <Label htmlFor="r-pdf">PDF</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Orientasi PDF</Label>
+                    <RadioGroup
+                      value={pdfOrientation}
+                      onValueChange={(value) =>
+                        setPdfOrientation(value as "portrait" | "landscape")
+                      }
+                      disabled={exportFormat !== "pdf"}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="portrait" id="r-portrait" />
+                        <Label htmlFor="r-portrait">Portrait</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="landscape" id="r-landscape" />
+                        <Label htmlFor="r-landscape">Landscape</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  {/* [DIUBAH] Panggil handleDownload saat di-klik */}
+                  <AlertDialogAction onClick={handleDownload}>
+                    Download
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
 
           <DropdownMenu>
+            {/* ... (Dropdown View Anda tidak berubah) ... */}
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
@@ -339,6 +521,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* ... (Filter faceted Anda tidak berubah) ... */}
         {currentQuantityColumn && (
           <DataTableFacetedFilter
             column={currentQuantityColumn}
@@ -367,8 +550,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
       <div className="rounded-md border">
         <Table>
+          {/* ... (Tabel Header Anda tidak berubah) ... */}
           <TableHeader>
-            {/* BARIS BARU DITAMBAHKAN DI SINI */}
             <TableRow>
               <TableHead
                 colSpan={columns.length}
@@ -379,7 +562,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 </span>
               </TableHead>
             </TableRow>
-            {/* AKHIR BARIS BARU */}
 
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -396,6 +578,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
               </TableRow>
             ))}
           </TableHeader>
+          {/* ... (Tabel Body Anda tidak berubah) ... */}
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -427,7 +610,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </Table>
       </div>
       <div className="flex items-center justify-between py-4">
-        {/* HITUNGAN DI FOOTER DIHAPUS, KEMBALI KE KODE AWAL */}
+        {/* ... (Paginasi Anda tidak berubah) ... */}
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
           <Select

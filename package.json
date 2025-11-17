@@ -48,6 +48,8 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "jotai": "^2.15.0",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "lodash.groupby": "^4.6.0",
     "lodash.throttle": "^4.1.1",
     "lucide-react": "^0.545.0",
