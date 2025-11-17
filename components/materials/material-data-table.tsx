@@ -102,11 +102,9 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const [lastDownloadInfo, setLastDownloadInfo] =
     React.useState<LastDownloadInfo | null>(null);
 
-  const { username, role, companyName } = useAuthStore((state) => ({
-    username: state.username,
-    role: state.role,
-    companyName: state.companyName,
-  }));
+  const username = useAuthStore((state) => state.username);
+  const role = useAuthStore((state) => state.role);
+  const companyName = useAuthStore((state) => state.companyName);
 
   const authHeaders = {
     "X-User-Role": role || "",
