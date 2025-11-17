@@ -23,7 +23,7 @@ function KanbanBinPreview({ material }: BinPreviewProps) {
     );
   }
 
-  // --- LOGIKA KANBAN DIUBAH JADI SEGMENTED ---
+  
   const current = currentQuantity;
   const shortagePoint = Math.ceil(maxBinQty * 0.3);
   const preshortagePoint = Math.ceil(maxBinQty * 0.6);
@@ -91,7 +91,7 @@ function KanbanBinPreview({ material }: BinPreviewProps) {
         })}
       </div>
 
-      {/* --- SECTION LABEL BIN DITAMBAHKAN --- */}
+      {}
       <div className="flex space-x-1 mt-1">
         {bins.map((index) => {
           const binStartQty = index * packQuantity;
@@ -121,10 +121,10 @@ function KanbanBinPreview({ material }: BinPreviewProps) {
           );
         })}
       </div>
-      {/* --- END SECTION LABEL BIN --- */}
+      {}
     </div>
   );
-  // --- AKHIR PERUBAHAN KANBAN ---
+  
 }
 
 function MultiBinPreview({ material }: BinPreviewProps) {
@@ -179,9 +179,9 @@ function MultiBinPreview({ material }: BinPreviewProps) {
 
       <div className="flex space-x-1 h-3">
         {bins.map((bin) => {
-          // --- DIUBAH: Tampilkan progres parsial ---
+          
           const percent = bin.maxBinStock > 0 ? (bin.currentBinStock / bin.maxBinStock) * 100 : 0;
-          // ------------------------------------
+          
 
           return (
             <div

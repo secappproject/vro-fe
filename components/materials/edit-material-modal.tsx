@@ -54,6 +54,7 @@ interface FormErrors {
   pic?: string;
   general?: string;
   vendorStock?: string;
+  openPO?: string; 
   [key: string]: string | undefined;
 }
 
@@ -82,6 +83,8 @@ export function EditMaterialModal({
   const [vendorStock, setVendorStock] = useState(
     String(material.vendorStock ?? 0)
   );
+  
+  const [openPO, setOpenPO] = useState(String(material.openPO ?? 0));
 
   const [packQuantity, setPackQuantity] = useState(
     String(material.packQuantity)
@@ -113,11 +116,7 @@ export function EditMaterialModal({
     material.bins ? JSON.parse(JSON.stringify(material.bins)) : []
   );
 
-  // MODIFIED: isReadOnly is strictly for Viewer. 
-  // Admin and Vendor can edit, but have restrictions on General Info.
   const isViewer = authRole === "Viewer";
-  
-  // MODIFIED: Admin and Vendor cannot edit general info (Code, Desc, Location)
   const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
 
   const {
@@ -168,6 +167,8 @@ export function EditMaterialModal({
   const nVendorStock = useMemo(() => parseInt(vendorStock, 10) || 0, [
     vendorStock,
   ]);
+  
+  const nOpenPO = useMemo(() => parseInt(openPO, 10) || 0, [openPO]);
 
   useEffect(() => {
     if (productType === "kanban") {
@@ -204,16 +205,20 @@ export function EditMaterialModal({
     return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
   }, [bins, productType, kanbanCurrentQuantity]);
 
+  
   const stockHasChanged = useMemo(() => {
     return (
       nCurrentQuantity !== material.currentQuantity ||
-      nVendorStock !== (material.vendorStock ?? 0)
+      nVendorStock !== (material.vendorStock ?? 0) ||
+      nOpenPO !== (material.openPO ?? 0)
     );
   }, [
     nCurrentQuantity,
     material.currentQuantity,
     nVendorStock,
     material.vendorStock,
+    nOpenPO,
+    material.openPO,
   ]);
 
   const handleBinStockChange = (index: number, value: string) => {
@@ -265,6 +270,7 @@ export function EditMaterialModal({
     return calc < 0 ? 0 : calc;
   }, [nCurrentQuantity, nTotalBinsMemo, nQuantityPerBinMemo]);
 
+  
   const previewMaterial = useMemo((): Material => {
     return {
       ...material,
@@ -278,6 +284,7 @@ export function EditMaterialModal({
       minBinQty: nMinBinQty,
       currentQuantity: nCurrentQuantity,
       vendorStock: nVendorStock,
+      openPO: nOpenPO, 
       bins: productType === "kanban" ? undefined : bins,
     };
   }, [
@@ -293,6 +300,7 @@ export function EditMaterialModal({
     nCurrentQuantity,
     bins,
     nVendorStock,
+    nOpenPO, 
   ]);
 
   const autoFixKelipatan = () => {
@@ -315,15 +323,15 @@ export function EditMaterialModal({
     setShowKelipatanError(false);
   };
 
+  
   const validate = (): boolean => {
     setShowKelipatanError(false);
     const newErrors: FormErrors = {};
 
     if (stockHasChanged && !pic.trim()) {
-      newErrors.pic = "PIC wajib diisi karena stok berubah.";
+      newErrors.pic = "PIC wajib diisi karena stok/PO berubah.";
     }
-    // Validation still runs, but fields might be disabled.
-    // Backend will ensure consistency if disabled fields are tampered with.
+
     if (!materialCode.trim()) {
       newErrors.materialCode = "Kode Material wajib diisi.";
     }
@@ -336,6 +344,10 @@ export function EditMaterialModal({
 
     if (nVendorStock < 0) {
       newErrors.vendorStock = "Vendor Stock tidak boleh negatif.";
+    }
+    
+    if (nOpenPO < 0) {
+      newErrors.openPO = "Open PO tidak boleh negatif.";
     }
 
     if (productType === "kanban") {
@@ -408,6 +420,7 @@ export function EditMaterialModal({
     return Object.keys(newErrors).length === 0;
   };
 
+  
   const handleSubmit = async () => {
     setErrors({});
     if (!validate()) {
@@ -425,6 +438,7 @@ export function EditMaterialModal({
         minBinQty: nMinBinQty,
         vendorCode,
         vendorStock: nVendorStock,
+        openPO: nOpenPO, 
         currentQuantity: nCurrentQuantity,
         pic: pic,
         productType: productType,
@@ -448,9 +462,6 @@ export function EditMaterialModal({
         throw new Error(errorData.error || "Gagal mengupdate material.");
       }
 
-      // If restricted, we trust backend to keep original general info
-      // But for frontend optimisitc update, we keep what was in state
-      // (which matches original if disabled)
       const updatedMaterial: Material = {
         ...material,
         ...payload,
@@ -488,6 +499,7 @@ export function EditMaterialModal({
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
@@ -566,6 +578,7 @@ export function EditMaterialModal({
             </SelectContent>
           </Select>
         </div>
+        
         {productType === "kanban" && (
           <div className="grid grid-cols-4 items-start gap-4 mb-4">
             <Label htmlFor="currentStock" className="text-left pt-2">
@@ -618,7 +631,7 @@ export function EditMaterialModal({
                   ? "border-destructive"
                   : ""
               }
-              placeholder="Nama Anda (Wajib jika stok berubah)"
+              placeholder="Nama Anda (Wajib jika stok/PO berubah)"
               disabled={isViewer}
             />
             {errors.pic && (
@@ -665,6 +678,47 @@ export function EditMaterialModal({
           </div>
         </div>
 
+        {}
+        <div className="grid grid-cols-4 items-start gap-4 mb-4">
+          <Label htmlFor="openPO" className="text-left pt-2">
+            Open PO
+          </Label>
+          <div className="col-span-3">
+            <Input
+              id="openPO"
+              type="number"
+              value={openPO}
+              onChange={(e) => {
+                setOpenPO(e.target.value);
+                clearError("openPO");
+              }}
+              placeholder="Jumlah Open PO"
+              className={
+                errors.openPO
+                  ? "border-destructive"
+                  : stockHasChanged &&
+                    nOpenPO !== (material.openPO ?? 0)
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+              }
+              disabled={isViewer}
+            />
+            {errors.openPO && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.openPO}
+              </p>
+            )}
+            {stockHasChanged &&
+              nOpenPO !== (material.openPO ?? 0) && (
+                <p className="text-xs text-destructive mt-1">
+                  Open PO berubah. PIC wajib diisi.
+                </p>
+              )}
+          </div>
+        </div>
+
+
+        {}
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -775,6 +829,7 @@ export function EditMaterialModal({
 
         {productType !== "kanban" && bins.length > 0 && (
           <div className="col-span-4 border-t pt-4 mt-4">
+            {}
             <Label className="text-base font-medium">Stok per Bin (SOH)</Label>
             <p className="text-sm text-muted-foreground mb-4">
               Atur stok untuk tiap bin individual. Total stok akan dihitung
@@ -860,6 +915,17 @@ export function EditMaterialModal({
             >
               {nVendorStock}
             </span>
+             | Open PO:{" "}
+            <span
+              className={`font-bold ${
+                stockHasChanged &&
+                nOpenPO !== (material.openPO ?? 0)
+                  ? "text-destructive"
+                  : "text-primary"
+              }`}
+            >
+              {nOpenPO}
+            </span>
           </p>
           <p className="text-xs text-muted-foreground mb-3">
             Max Qty (Final):{" "}
@@ -884,6 +950,7 @@ export function EditMaterialModal({
           <BinPreview material={previewMaterial} />
         </div>
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
           <Label htmlFor="vendorCode" className="text-left pt-2">
             Vendor

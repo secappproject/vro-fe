@@ -1,5 +1,3 @@
-"use client";
-
 import { ColumnDef } from "@tanstack/react-table";
 import { Material } from "@/lib/types";
 import { DataTableColumnHeader } from "../reusable-datatable/column-header";
@@ -220,6 +218,18 @@ export const getMaterialColumns = (
       return <span className={colorClass}>{stock}</span>;
     },
     enableSorting: true,
+  },
+  {
+    accessorKey: "openPO",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Open PO" />
+    ),
+    cell: ({ row }) => {
+      const openPO = (row.getValue("openPO") as number | null) ?? 0;
+      return <span>{openPO}</span>;
+    },
+    enableSorting: true,
+    enableColumnFilter: true,
   },
   {
     accessorKey: "pic",

@@ -56,6 +56,7 @@ export interface Material {
   currentQuantity: number;
   pic?: string;
   vendorStock?: number;
+  openPO?: number;
   productType: 'kanban' | 'consumable' | 'option';
   bins?: MaterialBin[]; 
 }
