@@ -10,11 +10,15 @@ import { ArrowRight } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/reusable-datatable/column-header";
 import { Row } from "@tanstack/react-table";
 
+import { MergedStockMovement } from "./data-table"; 
+
 const customFilterFn = (
-  row: Row<StockMovement>,
+  row: Row<MergedStockMovement>,
   columnId: string,
   filterValue: string[]
 ) => {
+  
+  
   if (!filterValue || filterValue.length === 0) {
     return true;
   }
@@ -51,7 +55,7 @@ const customFilterFn = (
   return filterValue.includes(rowDisplayValue);
 };
 
-export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
+export const getStockMovementColumns = (): ColumnDef<MergedStockMovement>[] => [
   {
     id: "no",
     header: "No.",
@@ -94,19 +98,41 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
       <DataTableColumnHeader column={column} title="Tipe Aksi" />
     ),
     cell: ({ row }) => {
-      const type = row.getValue("movementType") as string;
       
-      const displayType = type.replace(" Vendor", "");
+      const types = row.original.movementTypes || [row.getValue("movementType") as string];
+      
+      return (
+        <div className="flex flex-wrap gap-1">
+          {types.map((type, index) => {
 
-      let colorClass = "";
-      if (type.includes("IN")) {
-        colorClass = "text-green-600";
-      } else if (type.includes("OUT")) {
-        colorClass = "text-red-600";
-      } else if (type.includes("Edit")) { 
-        colorClass = "text-black-600";
-      }
-      return <span className={`font-medium ${colorClass}`}>{displayType}</span>;
+            function formatMovementType(t: string) {
+              const lower = t.toLowerCase();
+
+              if (lower === "scan in vendor") return "Scan In Vendor Stock";
+              if (lower === "scan out vendor") return "Scan Out Vendor Stock";
+              if (lower === "edit") return "Edit Stock";
+              if (lower === "edit vendor") return "Edit Vendor Stock";
+              if (lower === "scan in") return "Scan In Stock";
+              if (lower === "scan out") return "Scan Out Stock";
+
+              return t;
+            }
+
+
+            const displayType = formatMovementType(type);
+            //  const displayType = type.replace(" Vendor", "");
+
+             return (
+               <span 
+                 key={index} 
+                 className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium text-foreground bg-secondary/20 border-border"
+               >
+                 {displayType}
+               </span>
+             );
+          })}
+        </div>
+      );
     },
     enableColumnFilter: true,
     filterFn: customFilterFn,
@@ -115,13 +141,16 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
     id: "sohChange",
     header: "Perubahan SOH",
     cell: ({ row }) => {
-      const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
+      
+      const details = row.original.sohDetails;
 
-      if (movementType.includes("Vendor")) {
+      if (!details) {
         return <span className="text-muted-foreground">-</span>;
       }
 
+      const { oldQuantity, newQuantity, quantityChange } = details;
       const isPositive = quantityChange > 0;
+      
       return (
         <div className="flex items-center space-x-2 font-mono">
           <span>{oldQuantity}</span>
@@ -142,13 +171,16 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
     id: "vendorStockChange",
     header: "Perubahan Vendor Stok",
     cell: ({ row }) => {
-      const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
+      
+      const details = row.original.vendorDetails;
 
-      if (!movementType.includes("Vendor")) {
+      if (!details) {
         return <span className="text-muted-foreground">-</span>;
       }
 
+      const { oldQuantity, newQuantity, quantityChange } = details;
       const isPositive = quantityChange > 0;
+
       return (
         <div className="flex items-center space-x-2 font-mono">
           <span>{oldQuantity}</span>

@@ -39,14 +39,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import React from "react";
+import React, { useMemo } from "react";
+import { StockMovement } from "@/lib/types";
+
+
+export interface MergedStockMovement extends StockMovement {
+  movementTypes: string[]; 
+  sohDetails?: StockMovement; 
+  vendorDetails?: StockMovement; 
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
 }
 
-export function StockMovementDataTable<TData, TValue>({
+export function StockMovementDataTable<TData extends StockMovement, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
@@ -58,8 +66,45 @@ export function StockMovementDataTable<TData, TValue>({
     React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  const table = useReactTable<TData>({
-    data,
+  
+  const groupedData = useMemo(() => {
+    const groups: Record<string, MergedStockMovement> = {};
+
+    data.forEach((row) => {
+      
+      const key = row.timestamp;
+
+      if (!groups[key]) {
+        
+        groups[key] = {
+          ...row,
+          movementTypes: [row.movementType],
+          
+          sohDetails: !row.movementType.includes("Vendor") ? row : undefined,
+          vendorDetails: row.movementType.includes("Vendor") ? row : undefined,
+        };
+      } else {
+        
+        groups[key].movementTypes.push(row.movementType);
+        
+        
+        if (!row.movementType.includes("Vendor")) {
+          groups[key].sohDetails = row;
+        } else {
+          groups[key].vendorDetails = row;
+        }
+      }
+    });
+
+    
+    return Object.values(groups).sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [data]);
+  
+
+  const table = useReactTable({
+    data: groupedData as unknown as TData[], 
     columns,
     state: {
       sorting,
@@ -80,6 +125,7 @@ export function StockMovementDataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
+      {}
       <div className="flex items-center justify-between gap-4">
         <Input
           type="text"
@@ -181,6 +227,7 @@ export function StockMovementDataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      
       <div className="flex items-center justify-between py-4">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
