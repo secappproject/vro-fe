@@ -221,18 +221,18 @@ export const getStockMovementColumns = (): ColumnDef<MergedStockMovement>[] => [
     enableColumnFilter: true,
     filterFn: customFilterFn,
   },
-  {
-    accessorKey: "notes",
-    header: "Notes",
-    cell: ({ row }) => {
-      const notesObject = row.getValue("notes") as GoSqlNullString;
+  // {
+  //   accessorKey: "notes",
+  //   header: "Notes",
+  //   cell: ({ row }) => {
+  //     const notesObject = row.getValue("notes") as GoSqlNullString;
 
-      if (notesObject && notesObject.Valid) {
-        return <span>{notesObject.String}</span>;
-      }
-      return <span className="text-muted-foreground">-</span>;
-    },
-    enableColumnFilter: true,
-    filterFn: customFilterFn,
-  },
+  //     if (notesObject && notesObject.Valid) {
+  //       return <span>{notesObject.String}</span>;
+  //     }
+  //     return <span className="text-muted-foreground">-</span>;
+  //   },
+  //   enableColumnFilter: true,
+  //   filterFn: customFilterFn,
+  // },
 ];
