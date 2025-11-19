@@ -26,6 +26,12 @@ import {
   useAuthStore,
 } from "@/lib/types";
 
+
+const formatBinId = (id: number | null): string => {
+  if (id === null) return "";
+  return id.toString().padStart(2, "0");
+};
+
 interface BinPreviewProps {
   baseData: MaterialStatusResponse;
   simulatedBins: Map<number, number>;
@@ -47,7 +53,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
   if (productType === "kanban") {
     if (packQuantity <= 0) return <BinPreviewSkeleton />;
     qtyPerSegment = packQuantity;
-    totalBinSegments = maxBinQty / packQuantity;
+    totalBinSegments = Math.floor(maxBinQty / packQuantity);
   } else {
     if (!baseData.bins || baseData.bins.length === 0) return <BinPreviewSkeleton />;
     qtyPerSegment = quantityPerBin;
@@ -108,7 +114,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
             <div
               key={binId}
               className="relative flex-1 h-full bg-gray-200 rounded-sm overflow-hidden"
-              title={`Bin ${binId}`}
+              title={`Bin ${formatBinId(binId)}`}
             >
               {percent > 0 && (
                 <div
@@ -145,7 +151,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
               key={binId}
               className="flex-1 text-center font-mono text-[10px] leading-tight"
             >
-              <div className="text-gray-500 text-[9px]">B{binId}</div>
+              <div className="text-gray-500 text-[9px]">B{formatBinId(binId)}</div>
               <span className={isFilled ? "font-bold" : "text-gray-400"}>
                 {currentBinStock}/{maxBinStock}
               </span>
@@ -209,13 +215,15 @@ const parseRawScan = (rawCode: string): ParsedScan => {
       movement: null,
       quantity: null,
       format: null,
-      error: "Format scan tidak lengkap (cth: MAT_IN_1)",
+      error: "Format scan tidak lengkap (cth: MAT_IN_01)",
     };
   }
 
   const materialCode = parts[0];
   const movement = parts[1].toUpperCase();
   const binIdStr = parts[2];
+  
+  
   const binId = parseInt(binIdStr, 10);
 
   if (isNaN(binId) || binId <= 0) {
@@ -239,7 +247,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
         movement: "IN",
         quantity: null,
         format: null,
-        error: "Format IN tidak perlu Qty (cth: MAT_IN_1)",
+        error: "Format IN tidak perlu Qty (cth: MAT_IN_01)",
       };
     return {
       raw: code,
@@ -295,7 +303,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
       movement: "OUT",
       quantity: null,
       format: null,
-      error: "Format OUT salah (cth: MAT_OUT_1 atau MAT_OUT_1_10)",
+      error: "Format OUT salah (cth: MAT_OUT_01 atau MAT_OUT_01_10)",
     };
   }
 
@@ -451,38 +459,59 @@ export function AutoScanMaterialModal({
 
           const predictedMovement = parsed.movement;
           const predictedBinId = parsed.binId;
+          
+          
+          const formattedBin = formatBinId(predictedBinId); 
+
+          
+          if (predictedBinId !== null) {
+            let maxAllowedBinId = 0;
+            if (productType === "kanban") {
+               maxAllowedBinId = Math.floor(maxBinQty / packQuantity);
+            } else {
+               maxAllowedBinId = baseData.bins ? baseData.bins.length : 0;
+            }
+
+            if (predictedBinId > maxAllowedBinId) {
+                
+                rowError = `Bin ${formattedBin} tidak ada. (Maksimal: ${formatBinId(maxAllowedBinId)})`;
+            }
+          }
 
           let predictedQtyPcs: number | null = null;
           let inputQty: string = scan.inputQty;
           let showQtyInput: boolean = false;
           let qtyInputLabel: "Packs" | "PCS" | null = null;
-          let finalRawScan: string = scan.rawScan;
+          let finalRawScan: string = scan.rawScan; 
 
-          if (!rowError && parsed.format) {
+          
+          if (!rowError && parsed.format && predictedBinId !== null) {
             if (parsed.format === "IN") {
               predictedQtyPcs = quantityPerBin;
-              finalRawScan = scan.rawScan;
+              
+              finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`; 
             } else if (parsed.format === "OUT_DEFAULT") {
               if (scan.inputQty === "1") inputQty = "1";
 
               if (productType === "kanban") {
                 predictedQtyPcs = quantityPerBin;
-                finalRawScan = scan.rawScan;
+                finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}`;
               } else if (productType === "consumable") {
                 showQtyInput = true;
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = parseInt(inputQty, 10) * packQuantity;
-                finalRawScan = `${parsed.materialCode}_OUT_${parsed.binId}_${inputQty}`;
+                finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_${inputQty}`;
               } else if (productType === "option") {
                 showQtyInput = true;
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = parseInt(inputQty, 10) * packQuantity;
-                finalRawScan = `${parsed.materialCode}_OUT_${parsed.binId}_${inputQty}`;
+                finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_${inputQty}`;
               }
             } else if (parsed.format === "OUT_EXPLICIT") {
               const explicitQty = parsed.quantity!;
               inputQty = String(explicitQty);
-              finalRawScan = scan.rawScan;
+              
+              finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_${explicitQty}`;
 
               if (productType === "kanban") {
                 rowError = "Format 4-bagian (dgn Qty) tidak valid untuk Kanban.";
@@ -505,7 +534,7 @@ export function AutoScanMaterialModal({
                 const currentBinStock =
                   simulatedBins.get(predictedBinId) || 0;
                 if (currentBinStock > 0) {
-                  rowError = `Bin ${predictedBinId} sudah terisi (stok: ${currentBinStock})`;
+                  rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
                 }
               }
 
@@ -532,9 +561,9 @@ export function AutoScanMaterialModal({
                 const currentBinStock =
                   simulatedBins.get(predictedBinId) || 0;
                 if (currentBinStock === 0) {
-                  rowError = `Bin ${predictedBinId} sudah kosong`;
+                  rowError = `Bin ${formattedBin} sudah kosong`;
                 } else if (currentBinStock < predictedQtyPcs) {
-                  rowError = `Stok Bin ${predictedBinId} kurang (sisa ${currentBinStock}, butuh ${predictedQtyPcs})`;
+                  rowError = `Stok Bin ${formattedBin} kurang (sisa ${currentBinStock}, butuh ${predictedQtyPcs})`;
                 }
 
                 if (!rowError) {
@@ -632,9 +661,8 @@ export function AutoScanMaterialModal({
           }
         }
 
-        const newFinalRawScan = `${scan.parsed.materialCode}_OUT_${
-          scan.parsed.binId
-        }_${qtyValue <= 0 ? "" : qtyValue}`;
+        const binStr = formatBinId(scan.parsed.binId);
+        const newFinalRawScan = `${scan.parsed.materialCode}_OUT_${binStr}_${qtyValue <= 0 ? "" : qtyValue}`;
 
         return {
           ...scan,
@@ -647,38 +675,55 @@ export function AutoScanMaterialModal({
     );
   };
 
+  
   const handleBlur = (id: number) => {
     const scan = scans.find((s) => s.id === id);
     if (!scan) return;
 
-    let codeToRevalidate = scan.parsed.materialCode;
+    
     let newRawScan = scan.rawScan;
-    let needsStateUpdate = false;
 
+    
     if (scan.showQtyInput) {
-      const qtyNum = parseInt(scan.inputQty, 10);
-      if (isNaN(qtyNum) || qtyNum <= 0) {
-        setScans((prev) =>
-          prev.map((s) =>
-            s.id === id
-              ? { ...s, status: "error", errorMessage: "Qty tidak valid", baseData: null }
-              : s
-          )
-        );
-        return;
-      }
-      newRawScan = `${scan.parsed.materialCode}_OUT_${scan.parsed.binId}_${qtyNum}`;
+        const qtyNum = parseInt(scan.inputQty, 10);
+        if (isNaN(qtyNum) || qtyNum <= 0) {
+            setScans((prev) =>
+                prev.map((s) =>
+                    s.id === id
+                        ? { ...s, status: "error", errorMessage: "Qty tidak valid", baseData: null }
+                        : s
+                )
+            );
+            return;
+        }
+        
+        const binStr = formatBinId(scan.parsed.binId);
+        newRawScan = `${scan.parsed.materialCode}_OUT_${binStr}_${qtyNum}`;
+    } else {
+        
+        const tempParsed = parseRawScan(newRawScan);
+        if (tempParsed.binId !== null && !tempParsed.error && tempParsed.materialCode) {
+             
+             const binStr = formatBinId(tempParsed.binId);
+             newRawScan = `${tempParsed.materialCode}_${tempParsed.movement}_${binStr}`;
+             if (tempParsed.quantity) {
+                newRawScan += `_${tempParsed.quantity}`;
+             }
+        }
     }
 
     const reParsed = parseRawScan(newRawScan);
+    let needsStateUpdate = false;
 
     if (scan.rawScan !== newRawScan || scan.parsed.error !== reParsed.error) {
       needsStateUpdate = true;
     }
-    codeToRevalidate = reParsed.materialCode;
+    
+    const codeToRevalidate = reParsed.materialCode;
 
     if (codeToRevalidate) {
       if (needsStateUpdate) {
+        
         setScans((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, rawScan: newRawScan, parsed: reParsed } : s
@@ -812,12 +857,13 @@ export function AutoScanMaterialModal({
     if (scan.status !== "success") return null;
 
     const { predictedMovement, predictedQtyPcs, predictedBinId } = scan;
+    const binDisplay = formatBinId(predictedBinId);
 
     if (predictedMovement === "IN") {
-      return `+${predictedQtyPcs} pcs (IN, Bin ${predictedBinId || "?"})`;
+      return `+${predictedQtyPcs} pcs (IN, Bin ${binDisplay || "?"})`;
     }
 
-    return `-${predictedQtyPcs} pcs (OUT, Bin ${predictedBinId || "?"})`;
+    return `-${predictedQtyPcs} pcs (OUT, Bin ${binDisplay || "?"})`;
   };
 
   return (
@@ -826,7 +872,7 @@ export function AutoScanMaterialModal({
         <DialogTitle>Scan Stok (Auto IN/OUT)</DialogTitle>
         <DialogDescription>
           Scan: [Material]_IN_[Bin] | [Material]_OUT_[Bin] |
-          [Material]_OUT_[Bin]_[Qty]
+          [Material]_OUT_[Bin]_[Qty] (Bin 1 digit otomatis jadi 2 digit)
         </DialogDescription>
       </DialogHeader>
 
