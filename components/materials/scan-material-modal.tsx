@@ -26,7 +26,6 @@ import {
   useAuthStore,
 } from "@/lib/types";
 
-
 const formatBinId = (id: number | null): string => {
   if (id === null) return "";
   return id.toString().padStart(2, "0");
@@ -95,20 +94,14 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
       </div>
 
       <div className="flex space-x-1 h-3">
-        {binIds.map((binId, index) => {
-          let percent = 0;
-          if (productType === "kanban") {
-            const binStartQty = index * qtyPerSegment;
-            const binEndQty = (index + 1) * qtyPerSegment;
-            if (current >= binEndQty) percent = 100;
-            else if (current > binStartQty) {
-              percent = ((current - binStartQty) / qtyPerSegment) * 100;
-            }
-          } else {
-            const binStock = simulatedBins.get(binId) || 0;
-            percent = (binStock / qtyPerSegment) * 100;
-          }
-          if (current < 0) percent = 100;
+        {binIds.map((binId) => {
+          
+          
+          
+          const binStock = simulatedBins.get(binId) || 0;
+          let percent = (binStock / qtyPerSegment) * 100;
+          
+          if (current < 0) percent = 100; 
 
           return (
             <div
@@ -128,22 +121,11 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
       </div>
 
       <div className="flex space-x-1 mt-1">
-        {binIds.map((binId, index) => {
-          let currentBinStock = 0;
+        {binIds.map((binId) => {
           const maxBinStock = qtyPerSegment;
-
-          if (productType === "kanban") {
-            const binStartQty = index * qtyPerSegment;
-            const binEndQty = (index + 1) * qtyPerSegment;
-            if (current >= binEndQty) {
-              currentBinStock = qtyPerSegment;
-            } else if (current > binStartQty) {
-              currentBinStock = current - binStartQty;
-            }
-          } else {
-            currentBinStock = simulatedBins.get(binId) || 0;
-          }
-
+          
+          
+          const currentBinStock = simulatedBins.get(binId) || 0;
           const isFilled = currentBinStock > 0;
 
           return (
@@ -222,7 +204,6 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   const materialCode = parts[0];
   const movement = parts[1].toUpperCase();
   const binIdStr = parts[2];
-  
   
   const binId = parseInt(binIdStr, 10);
 
@@ -440,6 +421,22 @@ export function AutoScanMaterialModal({
 
       let runningQuantity = baseData.currentQuantity;
       const simulatedBins = new Map<number, number>();
+
+      
+      
+      
+      
+      if (baseData.productType === "kanban") {
+        const totalSegments = Math.floor(baseData.maxBinQty / baseData.packQuantity);
+        const fullBinsCount = Math.floor(baseData.currentQuantity / baseData.packQuantity);
+        
+        for (let i = 1; i <= totalSegments; i++) {
+             if (i <= fullBinsCount) simulatedBins.set(i, baseData.packQuantity);
+             else simulatedBins.set(i, 0);
+        }
+      }
+      
+
       if (baseData.bins) {
         baseData.bins.forEach((b) => {
           simulatedBins.set(b.binSequenceId, b.currentBinStock);
@@ -459,11 +456,8 @@ export function AutoScanMaterialModal({
 
           const predictedMovement = parsed.movement;
           const predictedBinId = parsed.binId;
-          
-          
           const formattedBin = formatBinId(predictedBinId); 
 
-          
           if (predictedBinId !== null) {
             let maxAllowedBinId = 0;
             if (productType === "kanban") {
@@ -473,7 +467,6 @@ export function AutoScanMaterialModal({
             }
 
             if (predictedBinId > maxAllowedBinId) {
-                
                 rowError = `Bin ${formattedBin} tidak ada. (Maksimal: ${formatBinId(maxAllowedBinId)})`;
             }
           }
@@ -484,11 +477,9 @@ export function AutoScanMaterialModal({
           let qtyInputLabel: "Packs" | "PCS" | null = null;
           let finalRawScan: string = scan.rawScan; 
 
-          
           if (!rowError && parsed.format && predictedBinId !== null) {
             if (parsed.format === "IN") {
               predictedQtyPcs = quantityPerBin;
-              
               finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`; 
             } else if (parsed.format === "OUT_DEFAULT") {
               if (scan.inputQty === "1") inputQty = "1";
@@ -530,12 +521,18 @@ export function AutoScanMaterialModal({
           let newTotalQuantity = runningQuantity;
           if (!rowError && predictedQtyPcs !== null && predictedBinId !== null) {
             if (predictedMovement === "IN") {
-              if (productType !== "kanban") {
-                const currentBinStock =
-                  simulatedBins.get(predictedBinId) || 0;
-                if (currentBinStock > 0) {
-                  rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
-                }
+              
+              
+              const currentBinStock = simulatedBins.get(predictedBinId) || 0;
+              
+              
+              
+              
+              if (currentBinStock > 0) {
+                  
+                  if (productType !== "kanban") {
+                     rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
+                  }
               }
 
               if (!rowError) {
@@ -544,22 +541,23 @@ export function AutoScanMaterialModal({
                   rowError = `Stok melebihi Max (${newTotalQuantity} / ${maxBinQty})`;
                 } else {
                   runningQuantity = newTotalQuantity;
-                  if (productType !== "kanban") {
-                    simulatedBins.set(predictedBinId, predictedQtyPcs);
-                  }
+                  
+                  simulatedBins.set(predictedBinId, predictedQtyPcs);
                 }
               }
             } else {
               if (productType === "kanban") {
+                
                 newTotalQuantity -= predictedQtyPcs;
                 if (newTotalQuantity < 0) {
                   rowError = `Stok kurang dari 0 (${newTotalQuantity})`;
                 } else {
                   runningQuantity = newTotalQuantity;
+                  
+                  simulatedBins.set(predictedBinId, 0);
                 }
               } else {
-                const currentBinStock =
-                  simulatedBins.get(predictedBinId) || 0;
+                const currentBinStock = simulatedBins.get(predictedBinId) || 0;
                 if (currentBinStock === 0) {
                   rowError = `Bin ${formattedBin} sudah kosong`;
                 } else if (currentBinStock < predictedQtyPcs) {
@@ -675,15 +673,12 @@ export function AutoScanMaterialModal({
     );
   };
 
-  
   const handleBlur = (id: number) => {
     const scan = scans.find((s) => s.id === id);
     if (!scan) return;
 
-    
     let newRawScan = scan.rawScan;
 
-    
     if (scan.showQtyInput) {
         const qtyNum = parseInt(scan.inputQty, 10);
         if (isNaN(qtyNum) || qtyNum <= 0) {
@@ -700,10 +695,8 @@ export function AutoScanMaterialModal({
         const binStr = formatBinId(scan.parsed.binId);
         newRawScan = `${scan.parsed.materialCode}_OUT_${binStr}_${qtyNum}`;
     } else {
-        
         const tempParsed = parseRawScan(newRawScan);
         if (tempParsed.binId !== null && !tempParsed.error && tempParsed.materialCode) {
-             
              const binStr = formatBinId(tempParsed.binId);
              newRawScan = `${tempParsed.materialCode}_${tempParsed.movement}_${binStr}`;
              if (tempParsed.quantity) {
@@ -723,7 +716,6 @@ export function AutoScanMaterialModal({
 
     if (codeToRevalidate) {
       if (needsStateUpdate) {
-        
         setScans((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, rawScan: newRawScan, parsed: reParsed } : s
