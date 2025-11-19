@@ -95,6 +95,9 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
     ),
     cell: ({ row }) => {
       const type = row.getValue("movementType") as string;
+      
+      const displayType = type.replace(" Vendor", "");
+
       let colorClass = "";
       if (type.includes("IN")) {
         colorClass = "text-green-600";
@@ -103,7 +106,7 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
       } else if (type.includes("Edit")) { 
         colorClass = "text-black-600";
       }
-      return <span className={`font-medium ${colorClass}`}>{type}</span>;
+      return <span className={`font-medium ${colorClass}`}>{displayType}</span>;
     },
     enableColumnFilter: true,
     filterFn: customFilterFn,
@@ -114,8 +117,7 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
     cell: ({ row }) => {
       const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
 
-      
-      if (movementType === "Edit Vendor Stock") {
+      if (movementType.includes("Vendor")) {
         return <span className="text-muted-foreground">-</span>;
       }
 
@@ -142,8 +144,7 @@ export const getStockMovementColumns = (): ColumnDef<StockMovement>[] => [
     cell: ({ row }) => {
       const { movementType, oldQuantity, newQuantity, quantityChange } = row.original;
 
-      
-      if (movementType !== "Edit Vendor Stock") {
+      if (!movementType.includes("Vendor")) {
         return <span className="text-muted-foreground">-</span>;
       }
 
