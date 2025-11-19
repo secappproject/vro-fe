@@ -7,10 +7,10 @@ import {
   GoSqlNullString,
 } from "@/lib/types";
 import { ArrowRight } from "lucide-react";
-import { DataTableColumnHeader } from "@/components/reusable-datatable/column-header";
 import { Row } from "@tanstack/react-table";
 
 import { MergedStockMovement } from "./data-table"; 
+import { DataTableColumnHeader } from "./column-header";
 
 const customFilterFn = (
   row: Row<MergedStockMovement>,
