@@ -44,20 +44,23 @@ import { StockMovement } from "@/lib/types";
 
 
 export interface MergedStockMovement extends StockMovement {
-  movementTypes: string[]; 
-  sohDetails?: StockMovement; 
-  vendorDetails?: StockMovement; 
+  movementTypes: string[];
+  sohDetails?: StockMovement;
+  vendorDetails?: StockMovement;
 }
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+
+
+interface DataTableProps {
+  columns: ColumnDef<MergedStockMovement, any>[];
+  data: StockMovement[];
 }
 
-export function StockMovementDataTable<TData extends StockMovement, TValue>({
+
+export function StockMovementDataTable({
   columns,
   data,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -103,8 +106,9 @@ export function StockMovementDataTable<TData extends StockMovement, TValue>({
   }, [data]);
   
 
-  const table = useReactTable({
-    data: groupedData as unknown as TData[], 
+  
+  const table = useReactTable<MergedStockMovement>({
+    data: groupedData, 
     columns,
     state: {
       sorting,
@@ -168,6 +172,7 @@ export function StockMovementDataTable<TData extends StockMovement, TValue>({
         </DropdownMenu>
       </div>
 
+      {}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -228,6 +233,7 @@ export function StockMovementDataTable<TData extends StockMovement, TValue>({
         </Table>
       </div>
       
+      {}
       <div className="flex items-center justify-between py-4">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>

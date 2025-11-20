@@ -3,13 +3,17 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { StockMovement, useAuthStore } from "@/lib/types"; 
+import { StockMovement, useAuthStore } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-import { MaterialAuthSkeleton } from "@/components/materials/material-skeleton"; 
+import { MaterialAuthSkeleton } from "@/components/materials/material-skeleton";
 import { getStockMovementColumns } from "@/components/materials/stock-movements/columns";
-import { StockMovementDataTable } from "@/components/materials/stock-movements/data-table";
+import { 
+  StockMovementDataTable, 
+  MergedStockMovement 
+} from "@/components/materials/stock-movements/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 export default function MaterialDetailPage() {
   const [data, setData] = useState<StockMovement[]>([]);
@@ -63,7 +67,9 @@ export default function MaterialDetailPage() {
     }
   }, [role, companyName, materialId]); 
 
-  const columns = getStockMovementColumns();
+  
+  
+  const columns = getStockMovementColumns() as ColumnDef<MergedStockMovement, any>[];
 
   if (!isClient || !role) {
     return <MaterialAuthSkeleton />;
@@ -92,6 +98,7 @@ export default function MaterialDetailPage() {
         </div>
       </div>
 
+      {}
       <StockMovementDataTable columns={columns} data={data} />
     </div>
   );
