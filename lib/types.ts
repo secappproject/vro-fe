@@ -70,6 +70,7 @@ export interface MaterialStatusResponse {
   quantityPerBin: number; 
   bins: MaterialBin[] | null; 
   vendorStock: number;
+  openPO: number;
 }
 export interface GoSqlNullInt {
   Int64: number;

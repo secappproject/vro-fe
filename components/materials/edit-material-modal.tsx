@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BinPreview } from "./bin-preview";
-import { Wand2 } from "lucide-react";
+import { Wand2, CheckCircle2, Circle, XCircle } from "lucide-react";
 
 interface EditMaterialModalProps {
   material: Material;
@@ -100,6 +100,7 @@ export function EditMaterialModal({
     if (qtyPerBin > 0 && material.productType !== "kanban") {
       return String(material.maxBinQty / qtyPerBin);
     }
+    // Untuk kanban atau fallback
     return String(
       material.bins?.length ||
         (material.packQuantity > 0
@@ -137,6 +138,7 @@ export function EditMaterialModal({
       const initialMaxBinQty = parseInt(maxBinQty, 10) || 0;
       nMaxBinQty = roundUpToPack(initialMaxBinQty, nPackQty);
       nMinBinQty = nPackQty;
+      // Untuk Kanban, qty per bin harusnya sama dengan pack qty
       nQuantityPerBinMemo = nPackQty;
       nTotalBinsMemo = nPackQty > 0 ? Math.ceil(nMaxBinQty / nPackQty) : 0;
     } else if (productType === "consumable") {
@@ -170,23 +172,25 @@ export function EditMaterialModal({
   
   const nOpenPO = useMemo(() => parseInt(openPO, 10) || 0, [openPO]);
 
+  // Effect untuk generate bins. 
+  // SEKARANG BERJALAN JUGA UNTUK KANBAN
   useEffect(() => {
-    if (productType === "kanban") {
-      setBins([]);
-      return;
-    }
     setBins((currentBins) => {
       const newBins: MaterialBin[] = [];
-      for (let i = 1; i <= nTotalBinsMemo; i++) {
+      // Gunakan max antara calculated total bins atau existing bin length agar tidak hilang
+      const targetLength = nTotalBinsMemo; 
+
+      for (let i = 1; i <= targetLength; i++) {
         const existingBin = currentBins.find((b) => b.binSequenceId === i);
         if (existingBin) {
+            // Update maxBinStock jika berubah
           newBins.push({
             ...existingBin,
             maxBinStock: nQuantityPerBinMemo,
           });
         } else {
           newBins.push({
-            id: -i,
+            id: -i, // Temp ID
             materialId: material.id,
             binSequenceId: i,
             maxBinStock: nQuantityPerBinMemo,
@@ -194,16 +198,18 @@ export function EditMaterialModal({
           });
         }
       }
-      return newBins.slice(0, nTotalBinsMemo);
+      return newBins;
     });
   }, [nTotalBinsMemo, nQuantityPerBinMemo, productType, material.id]);
 
   const nCurrentQuantity = useMemo(() => {
-    if (productType === "kanban") {
-      return parseInt(kanbanCurrentQuantity, 10) || 0;
+    // Untuk semua tipe sekarang hitung dari total bins jika bins ada
+    if (bins.length > 0) {
+        return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
     }
-    return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
-  }, [bins, productType, kanbanCurrentQuantity]);
+    // Fallback hanya jika tidak ada bin sama sekali (legacy data)
+    return parseInt(kanbanCurrentQuantity, 10) || 0;
+  }, [bins, kanbanCurrentQuantity]);
 
   
   const stockHasChanged = useMemo(() => {
@@ -234,6 +240,22 @@ export function EditMaterialModal({
       bin.currentBinStock = stock;
     }
 
+    setBins(newBins);
+    clearError(`bin_${index}`);
+  };
+
+  // Handler khusus untuk Kanban: Toggle 0 atau PackQty
+  const handleKanbanBinToggle = (index: number) => {
+    const newBins = [...bins];
+    const bin = newBins[index];
+    
+    // Jika ada isinya, kosongkan. Jika kosong, isi full.
+    if (bin.currentBinStock > 0) {
+        bin.currentBinStock = 0;
+    } else {
+        bin.currentBinStock = nQuantityPerBinMemo;
+    }
+    
     setBins(newBins);
     clearError(`bin_${index}`);
   };
@@ -285,7 +307,7 @@ export function EditMaterialModal({
       currentQuantity: nCurrentQuantity,
       vendorStock: nVendorStock,
       openPO: nOpenPO, 
-      bins: productType === "kanban" ? undefined : bins,
+      bins: bins, // Selalu kirim bins untuk preview
     };
   }, [
     material,
@@ -375,20 +397,8 @@ export function EditMaterialModal({
 
     let generalError = "";
 
-    if (productType === "kanban") {
-      if (nCurrentQuantity > nMaxBinQty) {
-        newErrors.currentQuantity = `Stok (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}).`;
-      }
-    } else {
-      if (
-        nQuantityPerBinMemo > 0 &&
-        nPackQty > 0 &&
-        nQuantityPerBinMemo < nPackQty
-      ) {
-        newErrors.quantityPerBin = `Qty per Bin (${nQuantityPerBinMemo}) tidak boleh lebih kecil dari Pack Qty (${nPackQty}).`;
-      }
-
-      bins.forEach((bin, index) => {
+    // Validasi stok bin
+    bins.forEach((bin, index) => {
         if (bin.currentBinStock < 0) {
           newErrors[`bin_${index}`] = "Tidak boleh negatif.";
         }
@@ -397,10 +407,11 @@ export function EditMaterialModal({
             `bin_${index}`
           ] = `Stok bin (${bin.currentBinStock}) melebihi Qty/Bin (${nQuantityPerBinMemo}).`;
         }
-      });
-      if (nCurrentQuantity > nMaxBinQty) {
+    });
+    
+    if (nCurrentQuantity > nMaxBinQty) {
         generalError += `Total stok bin (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}). `;
-      }
+        newErrors.currentQuantity = "Melebihi Max Qty";
     }
 
     if (nMaxBinQty > 0 && nPackQty > 0 && nMaxBinQty % nPackQty !== 0) {
@@ -442,7 +453,7 @@ export function EditMaterialModal({
         currentQuantity: nCurrentQuantity,
         pic: pic,
         productType: productType,
-        bins: productType === "kanban" ? null : bins,
+        bins: bins, // Kirim bins untuk semua tipe
       };
 
       const response = await fetch(
@@ -579,7 +590,8 @@ export function EditMaterialModal({
           </Select>
         </div>
         
-        {productType === "kanban" && (
+        {/* Field Current Stock manual hanya ditampilkan jika TIDAK ADA bin data (fallback) */}
+        {productType === "kanban" && bins.length === 0 && (
           <div className="grid grid-cols-4 items-start gap-4 mb-4">
             <Label htmlFor="currentStock" className="text-left pt-2">
               Current Stock (SOH)
@@ -827,56 +839,76 @@ export function EditMaterialModal({
           </div>
         )}
 
-        {productType !== "kanban" && bins.length > 0 && (
+        {/* Bagian Manajemen Bin (Tampil untuk SEMUA tipe sekarang) */}
+        {bins.length > 0 && (
           <div className="col-span-4 border-t pt-4 mt-4">
-            {}
             <Label className="text-base font-medium">Stok per Bin (SOH)</Label>
             <p className="text-sm text-muted-foreground mb-4">
-              Atur stok untuk tiap bin individual. Total stok akan dihitung
-              otomatis.
+                {productType === "kanban" 
+                    ? "Klik bin untuk mengubah status (KOSONG vs TERISI)." 
+                    : "Atur stok untuk tiap bin individual."}
             </p>
 
             <div className="flex items-center gap-2 mb-4">
               <Button
                 type="button"
                 variant="outline"
+                className="font-light"
                 size="sm"
                 onClick={() => handleSetAllBins(0)}
                 disabled={
                   (nQuantityPerBinMemo <= 0 && bins.length > 0) || isViewer
                 }
               >
-                Empty All Bins (Set to 0)
+                Empty All Bins (0)
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="font-light"
                 onClick={() => handleSetAllBins(nQuantityPerBinMemo)}
                 disabled={nQuantityPerBinMemo <= 0 || isViewer}
               >
-                Fill All Bins (Set to {nQuantityPerBinMemo || 0})
+                Fill All Bins ({nQuantityPerBinMemo})
               </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-x-4 gap-y-5">
               {bins.map((bin, index) => (
                 <div key={bin.binSequenceId} className="space-y-1">
-                  <Label htmlFor={`bin-${bin.binSequenceId}`}>
-                    Bin {bin.binSequenceId} (Max: {nQuantityPerBinMemo})
+                  <Label htmlFor={`bin-${bin.binSequenceId}`} className="text-xs">
+                    Bin {bin.binSequenceId}
                   </Label>
-                  <Input
-                    id={`bin-${bin.binSequenceId}`}
-                    type="number"
-                    value={bin.currentBinStock}
-                    onChange={(e) =>
-                      handleBinStockChange(index, e.target.value)
-                    }
-                    className={
-                      errors[`bin_${index}`] ? "border-destructive" : ""
-                    }
-                    disabled={isViewer}
-                  />
+                  
+                  {productType === "kanban" ? (
+                    <Button
+                        type="button"
+                        variant={bin.currentBinStock > 0 ? "default" : "outline"}
+                        className={`w-full justify-between ${bin.currentBinStock > 0 ? "bg-[#008A15]" : "text-[#008A15]"}`}
+                        onClick={() => handleKanbanBinToggle(index)}
+                        disabled={isViewer}
+                    >
+                        <span className="text-sm font-light">
+                            {bin.currentBinStock > 0 ? "Terisi" : "Kosong"}
+                        </span>
+                        {bin.currentBinStock > 0 ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                    </Button>
+                  ) : (
+                    <Input
+                        id={`bin-${bin.binSequenceId}`}
+                        type="number"
+                        value={bin.currentBinStock}
+                        onChange={(e) =>
+                        handleBinStockChange(index, e.target.value)
+                        }
+                        className={
+                        errors[`bin_${index}`] ? "border-destructive" : ""
+                        }
+                        disabled={isViewer}
+                    />
+                  )}
+
                   {errors[`bin_${index}`] && (
                     <p className="text-xs text-destructive">
                       {errors[`bin_${index}`]}
