@@ -52,7 +52,7 @@ export interface MergedStockMovement extends StockMovement {
 
 
 interface DataTableProps {
-  columns: ColumnDef<MergedStockMovement, any>[];
+  columns: ColumnDef<MergedStockMovement, unknown>[];
   data: StockMovement[];
 }
 
