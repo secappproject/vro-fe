@@ -69,7 +69,7 @@ export default function MaterialDetailPage() {
 
   
   
-  const columns = getStockMovementColumns() as ColumnDef<MergedStockMovement, any>[];
+  const columns = getStockMovementColumns() as ColumnDef<MergedStockMovement, unknown>[];
 
   if (!isClient || !role) {
     return <MaterialAuthSkeleton />;
