@@ -231,3 +231,4 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
     </div>
   );
 }
+
