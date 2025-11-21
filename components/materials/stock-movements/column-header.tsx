@@ -84,7 +84,7 @@ export function DataTableColumnHeader<TData, TValue>({
   });
 
   
-  const uniqueValues = Array.from(flattenedSet).sort((a: any, b: any) => {
+  const uniqueValues = Array.from(flattenedSet).sort((a: unknown, b: unknown) => {
     if (typeof a === "number" && typeof b === "number") return a - b;
     
     
