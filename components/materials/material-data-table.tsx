@@ -352,7 +352,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2 w-full max-w-lg">
-          {/* ... (Input filter Anda tidak berubah) ... */}
+          {}
           <div className="flex items-center gap-2">
             <Input
               type="text"
@@ -398,7 +398,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
         <div className="flex items-center gap-2">
           <div className="flex flex-row items-center gap-2">
-            {/* [DIUBAH] Tampilkan info dari state lastDownloadInfo */}
+            {}
             {lastDownloadInfo && (
               <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                 Last Download: {lastDownloadInfo.username} @{" "}
@@ -428,7 +428,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 </AlertDialogHeader>
 
                 <div className="grid grid-cols-2 gap-4 py-4">
-                  {/* ... (Opsi Format File tidak berubah) ... */}
+                  {}
                   <div className="space-y-2">
                     <Label>Format File</Label>
                     <RadioGroup
@@ -470,7 +470,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
                 <AlertDialogFooter>
                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                  {/* [DIUBAH] Panggil handleDownload saat di-klik */}
+                  {}
                   <AlertDialogAction onClick={handleDownload}>
                     Download
                   </AlertDialogAction>
@@ -480,7 +480,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
           </div>
 
           <DropdownMenu>
-            {/* ... (Dropdown View Anda tidak berubah) ... */}
+            {}
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
@@ -519,15 +519,11 @@ export function MaterialDataTable<TData extends Material, TValue>({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {/* ... (Filter faceted Anda tidak berubah) ... */}
-        {currentQuantityColumn && (
+        {/* {currentQuantityColumn && (
           <DataTableFacetedFilter
             column={currentQuantityColumn}
             title="Stok Bin"
           />
-        )}
-        {productTypeColumn && (
-          <DataTableFacetedFilter column={productTypeColumn} title="Tipe" />
         )}
         {minBinQtyColumn && (
           <DataTableFacetedFilter column={minBinQtyColumn} title="Min Qty" />
@@ -543,12 +539,12 @@ export function MaterialDataTable<TData extends Material, TValue>({
         )}
         {totalBinsColumn && (
           <DataTableFacetedFilter column={totalBinsColumn} title="Total Bins" />
-        )}
+        )} */}
       </div>
 
       <div className="rounded-md border">
         <Table>
-          {/* ... (Tabel Header Anda tidak berubah) ... */}
+          {}
           <TableHeader>
             <TableRow>
               <TableHead
@@ -576,7 +572,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          {/* ... (Tabel Body Anda tidak berubah) ... */}
+          {}
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -608,7 +604,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </Table>
       </div>
       <div className="flex items-center justify-between py-4">
-        {/* ... (Paginasi Anda tidak berubah) ... */}
+        {}
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
           <Select
