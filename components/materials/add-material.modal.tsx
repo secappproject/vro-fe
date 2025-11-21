@@ -1,6 +1,6 @@
 "use-client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -27,15 +27,6 @@ interface AddMaterialModalProps {
   onMaterialAdded: (newMaterial: Material) => void;
 }
 
-const HARDCODED_VENDORS = [
-  "ABACUS",
-  "UMEDA",
-  "GAA",
-  "Triakarya",
-  "Globalindo",
-  "Presisi",
-];
-
 const roundUpToPack = (value: number, packQty: number) => {
   if (packQty <= 0) return value;
   return Math.ceil(value / packQty) * packQty;
@@ -60,6 +51,9 @@ export function AddMaterialModal({
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
 
+  
+  const [vendors, setVendors] = useState<string[]>([]);
+
   const [materialCode, setMaterialCode] = useState("");
   const [materialDescription, setMaterialDescription] = useState("");
   const [location, setLocation] = useState("");
@@ -79,6 +73,32 @@ export function AddMaterialModal({
 
   const isReadOnly =
     authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+
+  
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/companies`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-User-Role": authRole || "",
+            },
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setVendors(data);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data vendor:", error);
+      }
+    };
+
+    fetchVendors();
+  }, [authRole]);
+  
 
   const {
     nPackQty,
@@ -122,13 +142,7 @@ export function AddMaterialModal({
       nTotalBinsMemo,
       nQuantityPerBinMemo,
     };
-  }, [
-    packQuantity,
-    quantityPerBin,
-    maxBinQty,
-    totalBins,
-    productType,
-  ]);
+  }, [packQuantity, quantityPerBin, maxBinQty, totalBins, productType]);
 
   const nVendorStock = useMemo(() => parseInt(vendorStock, 10) || 0, [
     vendorStock,
@@ -190,11 +204,7 @@ export function AddMaterialModal({
   };
 
   const autoFixKelipatan = () => {
-    if (
-      productType === "kanban" ||
-      nTotalBinsMemo <= 0 ||
-      nPackQty <= 0
-    )
+    if (productType === "kanban" || nTotalBinsMemo <= 0 || nPackQty <= 0)
       return;
     const targetMax = roundUpToPack(nMaxBinQty, nPackQty);
 
@@ -553,6 +563,7 @@ export function AddMaterialModal({
           </div>
         )}
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
           <Label htmlFor="vendorCode" className="text-left pt-2">
             Vendor
@@ -572,11 +583,17 @@ export function AddMaterialModal({
                 <SelectValue placeholder="Pilih vendor" />
               </SelectTrigger>
               <SelectContent>
-                {HARDCODED_VENDORS.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
+                {vendors.length > 0 ? (
+                  vendors.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="loading" disabled>
+                    Memuat data vendor...
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
             {errors.vendorCode && (

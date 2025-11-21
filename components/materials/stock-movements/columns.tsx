@@ -10,19 +10,17 @@ import { ArrowRight } from "lucide-react";
 import { MergedStockMovement } from "./data-table";
 import { DataTableColumnHeader } from "./column-header";
 
+
 const customFilterFn = (
   row: Row<MergedStockMovement>,
   columnId: string,
   filterValue: string[]
 ) => {
-  if (!filterValue || filterValue.length === 0) {
-    return true;
-  }
+  if (!filterValue || filterValue.length === 0) return true;
 
   const rowValue = row.getValue(columnId);
   let rowDisplayValue = "(Kosong)";
 
-  // Null Int / Null String (bin, notes, dsb)
   if (typeof rowValue === "object" && rowValue !== null && "Valid" in rowValue) {
     if ((rowValue as GoSqlNullInt).Valid && "Int64" in rowValue) {
       rowDisplayValue = `Bin ${(rowValue as GoSqlNullInt).Int64}`;
@@ -30,13 +28,8 @@ const customFilterFn = (
       rowDisplayValue = (rowValue as GoSqlNullString).String;
     }
   } else if (typeof rowValue === "string") {
-    // Tanggal ISO → diformat lokal
     const date = new Date(rowValue);
-    if (
-      !isNaN(date.getTime()) &&
-      rowValue.includes("T") &&
-      rowValue.includes("Z")
-    ) {
+    if (!isNaN(date.getTime()) && rowValue.includes("T") && rowValue.includes("Z")) {
       rowDisplayValue = date.toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "short",
@@ -56,21 +49,38 @@ const customFilterFn = (
   return filterValue.includes(rowDisplayValue);
 };
 
+
+const binFilterFn = (
+  row: Row<MergedStockMovement>,
+  columnId: string,
+  filterValues: string[]
+) => {
+  if (!filterValues || filterValues.length === 0) return true;
+
+  const bins = row.original.relatedBins || [];
+
+  
+  
+  const hasBinMatch = bins.some((binNum) => filterValues.includes(`Bin ${binNum}`));
+  if (hasBinMatch) return true;
+
+  
+  
+  if (filterValues.includes("(Kosong)")) {
+    return bins.length === 0;
+  }
+
+  return false;
+};
+
 function formatMovementType(t: string) {
   const lower = t.toLowerCase().trim();
-
-  // Scan Stock
   if (lower === "scan in") return "Scan In Stock";
   if (lower === "scan out") return "Scan Out Stock";
-
-  // Scan Vendor (akan kita kirim dari backend: "Scan In Vendor", "Scan Out Vendor")
   if (lower === "scan in vendor") return "Scan In Vendor Stock";
   if (lower === "scan out vendor") return "Scan Out Vendor Stock";
-
-  // Edit total stock vs vendor stock
   if (lower === "edit") return "Edit Stock";
   if (lower === "edit vendor") return "Edit Vendor Stock";
-
   return t;
 }
 
@@ -91,7 +101,6 @@ export const getStockMovementColumns =
       cell: ({ row }) => {
         const raw = row.getValue("timestamp") as string;
         const date = new Date(raw);
-
         return (
           <div className="flex flex-col">
             <span className="text-sm">
@@ -128,7 +137,6 @@ export const getStockMovementColumns =
           <div className="flex flex-wrap gap-1">
             {types.map((type, index) => {
               const displayType = formatMovementType(type);
-
               return (
                 <span
                   key={`${type}-${index}`}
@@ -149,10 +157,7 @@ export const getStockMovementColumns =
       header: "Perubahan SOH",
       cell: ({ row }) => {
         const details: StockMovement | undefined = row.original.sohDetails;
-
-        if (!details) {
-          return <span className="text-muted-foreground">-</span>;
-        }
+        if (!details) return <span className="text-muted-foreground">-</span>;
 
         const { oldQuantity, newQuantity, quantityChange } = details;
         const isPositive = quantityChange > 0;
@@ -178,10 +183,7 @@ export const getStockMovementColumns =
       header: "Perubahan Vendor Stok",
       cell: ({ row }) => {
         const details: StockMovement | undefined = row.original.vendorDetails;
-
-        if (!details) {
-          return <span className="text-muted-foreground">-</span>;
-        }
+        if (!details) return <span className="text-muted-foreground">-</span>;
 
         const { oldQuantity, newQuantity, quantityChange } = details;
         const isPositive = quantityChange > 0;
@@ -202,23 +204,43 @@ export const getStockMovementColumns =
         );
       },
     },
+    
+    
     {
-      accessorKey: "binSequenceId",
+      id: "binSequenceId",
+      
+      
+      accessorFn: (row) => {
+        if (row.relatedBins && row.relatedBins.length > 0) {
+            return row.relatedBins;
+        }
+        return null;
+      },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Bin" />
       ),
       cell: ({ row }) => {
-        const binObj = row.getValue("binSequenceId") as GoSqlNullInt;
+        const bins = row.original.relatedBins;
 
-        if (binObj && binObj.Valid) {
-          return <span className="font-mono">Bin {binObj.Int64}</span>;
+        if (bins && bins.length > 0) {
+          if (bins.length > 1) {
+            return <span className="font-mono text-xs">Bin {bins.join(", ")}</span>;
+          }
+          return <span className="font-mono">Bin {bins[0]}</span>;
         }
 
         return <span className="text-muted-foreground">-</span>;
       },
+      
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.relatedBins?.[0] ?? -1;
+        const b = rowB.original.relatedBins?.[0] ?? -1;
+        return a - b;
+      },
       enableColumnFilter: true,
-      filterFn: customFilterFn,
+      filterFn: binFilterFn, 
     },
+    
     {
       accessorKey: "pic",
       header: ({ column }) => (
@@ -227,21 +249,4 @@ export const getStockMovementColumns =
       enableColumnFilter: true,
       filterFn: customFilterFn,
     },
-    // Notes kalau mau diaktifin lagi tinggal buka komentar:
-    // {
-    //   accessorKey: "notes",
-    //   header: ({ column }) => (
-    //     <DataTableColumnHeader column={column} title="Notes" />
-    //   ),
-    //   cell: ({ row }) => {
-    //     const notesObject = row.getValue("notes") as GoSqlNullString;
-    //
-    //     if (notesObject && notesObject.Valid) {
-    //       return <span>{notesObject.String}</span>;
-    //     }
-    //     return <span className="text-muted-foreground">-</span>;
-    //   },
-    //   enableColumnFilter: true,
-    //   filterFn: customFilterFn,
-    // },
   ];

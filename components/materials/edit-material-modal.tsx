@@ -20,22 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BinPreview } from "./bin-preview";
-import { Wand2, CheckCircle2, Circle, XCircle } from "lucide-react";
+import { Wand2, CheckCircle2, Circle } from "lucide-react";
 
 interface EditMaterialModalProps {
   material: Material;
   setIsOpen: (open: boolean) => void;
   onMaterialUpdated: (updatedMaterial: Material) => void;
 }
-
-const HARDCODED_VENDORS = [
-  "ABACUS",
-  "UMEDA",
-  "GAA",
-  "Triakarya",
-  "Globalindo",
-  "Presisi",
-];
 
 const roundUpToPack = (value: number, packQty: number) => {
   if (packQty <= 0) return value;
@@ -54,7 +45,7 @@ interface FormErrors {
   pic?: string;
   general?: string;
   vendorStock?: string;
-  openPO?: string; 
+  openPO?: string;
   [key: string]: string | undefined;
 }
 
@@ -66,6 +57,9 @@ export function EditMaterialModal({
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
   const authUsername = useAuthStore((state) => state.username);
+
+  
+  const [vendors, setVendors] = useState<string[]>([]);
 
   const [materialCode, setMaterialCode] = useState(material.material);
   const [materialDescription, setMaterialDescription] = useState(
@@ -83,7 +77,7 @@ export function EditMaterialModal({
   const [vendorStock, setVendorStock] = useState(
     String(material.vendorStock ?? 0)
   );
-  
+
   const [openPO, setOpenPO] = useState(String(material.openPO ?? 0));
 
   const [packQuantity, setPackQuantity] = useState(
@@ -100,7 +94,6 @@ export function EditMaterialModal({
     if (qtyPerBin > 0 && material.productType !== "kanban") {
       return String(material.maxBinQty / qtyPerBin);
     }
-    // Untuk kanban atau fallback
     return String(
       material.bins?.length ||
         (material.packQuantity > 0
@@ -120,6 +113,33 @@ export function EditMaterialModal({
   const isViewer = authRole === "Viewer";
   const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
 
+  
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/companies`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-User-Role": authRole || "",
+            },
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          
+          setVendors(data);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data vendor:", error);
+      }
+    };
+
+    fetchVendors();
+  }, [authRole]);
+  
+
   const {
     nPackQty,
     nMinBinQty,
@@ -138,13 +158,8 @@ export function EditMaterialModal({
       const initialMaxBinQty = parseInt(maxBinQty, 10) || 0;
       nMaxBinQty = roundUpToPack(initialMaxBinQty, nPackQty);
       nMinBinQty = nPackQty;
-      // Untuk Kanban, qty per bin harusnya sama dengan pack qty
       nQuantityPerBinMemo = nPackQty;
       nTotalBinsMemo = nPackQty > 0 ? Math.ceil(nMaxBinQty / nPackQty) : 0;
-    } else if (productType === "consumable") {
-      nTotalBinsMemo = parseInt(totalBins, 10) || 0;
-      nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
-      nMinBinQty = nPackQty;
     } else {
       nTotalBinsMemo = parseInt(totalBins, 10) || 0;
       nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
@@ -158,39 +173,29 @@ export function EditMaterialModal({
       nTotalBinsMemo,
       nQuantityPerBinMemo,
     };
-  }, [
-    packQuantity,
-    quantityPerBin,
-    maxBinQty,
-    totalBins,
-    productType,
-  ]);
+  }, [packQuantity, quantityPerBin, maxBinQty, totalBins, productType]);
 
   const nVendorStock = useMemo(() => parseInt(vendorStock, 10) || 0, [
     vendorStock,
   ]);
-  
+
   const nOpenPO = useMemo(() => parseInt(openPO, 10) || 0, [openPO]);
 
-  // Effect untuk generate bins. 
-  // SEKARANG BERJALAN JUGA UNTUK KANBAN
   useEffect(() => {
     setBins((currentBins) => {
       const newBins: MaterialBin[] = [];
-      // Gunakan max antara calculated total bins atau existing bin length agar tidak hilang
-      const targetLength = nTotalBinsMemo; 
+      const targetLength = nTotalBinsMemo;
 
       for (let i = 1; i <= targetLength; i++) {
         const existingBin = currentBins.find((b) => b.binSequenceId === i);
         if (existingBin) {
-            // Update maxBinStock jika berubah
           newBins.push({
             ...existingBin,
             maxBinStock: nQuantityPerBinMemo,
           });
         } else {
           newBins.push({
-            id: -i, // Temp ID
+            id: -i,
             materialId: material.id,
             binSequenceId: i,
             maxBinStock: nQuantityPerBinMemo,
@@ -203,15 +208,12 @@ export function EditMaterialModal({
   }, [nTotalBinsMemo, nQuantityPerBinMemo, productType, material.id]);
 
   const nCurrentQuantity = useMemo(() => {
-    // Untuk semua tipe sekarang hitung dari total bins jika bins ada
     if (bins.length > 0) {
-        return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
+      return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
     }
-    // Fallback hanya jika tidak ada bin sama sekali (legacy data)
     return parseInt(kanbanCurrentQuantity, 10) || 0;
   }, [bins, kanbanCurrentQuantity]);
 
-  
   const stockHasChanged = useMemo(() => {
     return (
       nCurrentQuantity !== material.currentQuantity ||
@@ -244,18 +246,16 @@ export function EditMaterialModal({
     clearError(`bin_${index}`);
   };
 
-  // Handler khusus untuk Kanban: Toggle 0 atau PackQty
   const handleKanbanBinToggle = (index: number) => {
     const newBins = [...bins];
     const bin = newBins[index];
-    
-    // Jika ada isinya, kosongkan. Jika kosong, isi full.
+
     if (bin.currentBinStock > 0) {
-        bin.currentBinStock = 0;
+      bin.currentBinStock = 0;
     } else {
-        bin.currentBinStock = nQuantityPerBinMemo;
+      bin.currentBinStock = nQuantityPerBinMemo;
     }
-    
+
     setBins(newBins);
     clearError(`bin_${index}`);
   };
@@ -292,7 +292,6 @@ export function EditMaterialModal({
     return calc < 0 ? 0 : calc;
   }, [nCurrentQuantity, nTotalBinsMemo, nQuantityPerBinMemo]);
 
-  
   const previewMaterial = useMemo((): Material => {
     return {
       ...material,
@@ -306,8 +305,8 @@ export function EditMaterialModal({
       minBinQty: nMinBinQty,
       currentQuantity: nCurrentQuantity,
       vendorStock: nVendorStock,
-      openPO: nOpenPO, 
-      bins: bins, // Selalu kirim bins untuk preview
+      openPO: nOpenPO,
+      bins: bins,
     };
   }, [
     material,
@@ -322,15 +321,11 @@ export function EditMaterialModal({
     nCurrentQuantity,
     bins,
     nVendorStock,
-    nOpenPO, 
+    nOpenPO,
   ]);
 
   const autoFixKelipatan = () => {
-    if (
-      productType === "kanban" ||
-      nTotalBinsMemo <= 0 ||
-      nPackQty <= 0
-    )
+    if (productType === "kanban" || nTotalBinsMemo <= 0 || nPackQty <= 0)
       return;
 
     const targetMax = roundUpToPack(nMaxBinQty, nPackQty);
@@ -340,12 +335,10 @@ export function EditMaterialModal({
     const finalNewQtyPerBin = Math.ceil(finalTargetMax / nTotalBinsMemo);
 
     setQuantityPerBin(String(finalNewQtyPerBin));
-
     clearError("general");
     setShowKelipatanError(false);
   };
 
-  
   const validate = (): boolean => {
     setShowKelipatanError(false);
     const newErrors: FormErrors = {};
@@ -353,7 +346,6 @@ export function EditMaterialModal({
     if (stockHasChanged && !pic.trim()) {
       newErrors.pic = "PIC wajib diisi karena stok/PO berubah.";
     }
-
     if (!materialCode.trim()) {
       newErrors.materialCode = "Kode Material wajib diisi.";
     }
@@ -363,11 +355,9 @@ export function EditMaterialModal({
     if (nPackQty <= 0) {
       newErrors.packQuantity = "Pack Qty harus > 0.";
     }
-
     if (nVendorStock < 0) {
       newErrors.vendorStock = "Vendor Stock tidak boleh negatif.";
     }
-    
     if (nOpenPO < 0) {
       newErrors.openPO = "Open PO tidak boleh negatif.";
     }
@@ -379,13 +369,6 @@ export function EditMaterialModal({
       if (nCurrentQuantity < 0) {
         newErrors.currentQuantity = "Current Stock tidak boleh negatif.";
       }
-    } else if (productType === "consumable") {
-      if (nTotalBinsMemo <= 0) {
-        newErrors.totalBins = "Total Bins harus > 0.";
-      }
-      if (nQuantityPerBinMemo <= 0) {
-        newErrors.quantityPerBin = "Qty per Bin harus > 0.";
-      }
     } else {
       if (nTotalBinsMemo <= 0) {
         newErrors.totalBins = "Total Bins harus > 0.";
@@ -396,22 +379,18 @@ export function EditMaterialModal({
     }
 
     let generalError = "";
-
-    // Validasi stok bin
     bins.forEach((bin, index) => {
-        if (bin.currentBinStock < 0) {
-          newErrors[`bin_${index}`] = "Tidak boleh negatif.";
-        }
-        if (bin.currentBinStock > nQuantityPerBinMemo) {
-          newErrors[
-            `bin_${index}`
-          ] = `Stok bin (${bin.currentBinStock}) melebihi Qty/Bin (${nQuantityPerBinMemo}).`;
-        }
+      if (bin.currentBinStock < 0) {
+        newErrors[`bin_${index}`] = "Tidak boleh negatif.";
+      }
+      if (bin.currentBinStock > nQuantityPerBinMemo) {
+        newErrors[`bin_${index}`] = `Stok bin (${bin.currentBinStock}) melebihi Qty/Bin (${nQuantityPerBinMemo}).`;
+      }
     });
-    
+
     if (nCurrentQuantity > nMaxBinQty) {
-        generalError += `Total stok bin (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}). `;
-        newErrors.currentQuantity = "Melebihi Max Qty";
+      generalError += `Total stok bin (${nCurrentQuantity}) melebihi Max Qty (Final: ${nMaxBinQty}). `;
+      newErrors.currentQuantity = "Melebihi Max Qty";
     }
 
     if (nMaxBinQty > 0 && nPackQty > 0 && nMaxBinQty % nPackQty !== 0) {
@@ -431,7 +410,6 @@ export function EditMaterialModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  
   const handleSubmit = async () => {
     setErrors({});
     if (!validate()) {
@@ -449,11 +427,11 @@ export function EditMaterialModal({
         minBinQty: nMinBinQty,
         vendorCode,
         vendorStock: nVendorStock,
-        openPO: nOpenPO, 
+        openPO: nOpenPO,
         currentQuantity: nCurrentQuantity,
         pic: pic,
         productType: productType,
-        bins: bins, // Kirim bins untuk semua tipe
+        bins: bins,
       };
 
       const response = await fetch(
@@ -510,7 +488,6 @@ export function EditMaterialModal({
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
@@ -532,9 +509,9 @@ export function EditMaterialModal({
               </p>
             )}
             {isGeneralInfoRestricted && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                    Hanya Superuser yang dapat mengubah Kode Material.
-                </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Hanya Superuser yang dapat mengubah Kode Material.
+              </p>
             )}
           </div>
         </div>
@@ -589,8 +566,7 @@ export function EditMaterialModal({
             </SelectContent>
           </Select>
         </div>
-        
-        {/* Field Current Stock manual hanya ditampilkan jika TIDAK ADA bin data (fallback) */}
+
         {productType === "kanban" && bins.length === 0 && (
           <div className="grid grid-cols-4 items-start gap-4 mb-4">
             <Label htmlFor="currentStock" className="text-left pt-2">
@@ -690,7 +666,6 @@ export function EditMaterialModal({
           </div>
         </div>
 
-        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="openPO" className="text-left pt-2">
             Open PO
@@ -708,29 +683,23 @@ export function EditMaterialModal({
               className={
                 errors.openPO
                   ? "border-destructive"
-                  : stockHasChanged &&
-                    nOpenPO !== (material.openPO ?? 0)
+                  : stockHasChanged && nOpenPO !== (material.openPO ?? 0)
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
               disabled={isViewer}
             />
             {errors.openPO && (
+              <p className="text-xs text-destructive mt-1">{errors.openPO}</p>
+            )}
+            {stockHasChanged && nOpenPO !== (material.openPO ?? 0) && (
               <p className="text-xs text-destructive mt-1">
-                {errors.openPO}
+                Open PO berubah. PIC wajib diisi.
               </p>
             )}
-            {stockHasChanged &&
-              nOpenPO !== (material.openPO ?? 0) && (
-                <p className="text-xs text-destructive mt-1">
-                  Open PO berubah. PIC wajib diisi.
-                </p>
-              )}
           </div>
         </div>
 
-
-        {}
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -839,14 +808,13 @@ export function EditMaterialModal({
           </div>
         )}
 
-        {/* Bagian Manajemen Bin (Tampil untuk SEMUA tipe sekarang) */}
         {bins.length > 0 && (
           <div className="col-span-4 border-t pt-4 mt-4">
             <Label className="text-base font-medium">Stok per Bin (SOH)</Label>
             <p className="text-sm text-muted-foreground mb-4">
-                {productType === "kanban" 
-                    ? "Klik bin untuk mengubah status (KOSONG vs TERISI)." 
-                    : "Atur stok untuk tiap bin individual."}
+              {productType === "kanban"
+                ? "Klik bin untuk mengubah status (KOSONG vs TERISI)."
+                : "Atur stok untuk tiap bin individual."}
             </p>
 
             <div className="flex items-center gap-2 mb-4">
@@ -877,35 +845,46 @@ export function EditMaterialModal({
             <div className="grid grid-cols-3 gap-x-4 gap-y-5">
               {bins.map((bin, index) => (
                 <div key={bin.binSequenceId} className="space-y-1">
-                  <Label htmlFor={`bin-${bin.binSequenceId}`} className="text-xs">
+                  <Label
+                    htmlFor={`bin-${bin.binSequenceId}`}
+                    className="text-xs"
+                  >
                     Bin {bin.binSequenceId}
                   </Label>
-                  
+
                   {productType === "kanban" ? (
                     <Button
-                        type="button"
-                        variant={bin.currentBinStock > 0 ? "default" : "outline"}
-                        className={`w-full justify-between ${bin.currentBinStock > 0 ? "bg-[#008A15]" : "text-[#008A15]"}`}
-                        onClick={() => handleKanbanBinToggle(index)}
-                        disabled={isViewer}
+                      type="button"
+                      variant={bin.currentBinStock > 0 ? "default" : "outline"}
+                      className={`w-full justify-between ${
+                        bin.currentBinStock > 0
+                          ? "bg-[#008A15]"
+                          : "text-[#008A15]"
+                      }`}
+                      onClick={() => handleKanbanBinToggle(index)}
+                      disabled={isViewer}
                     >
-                        <span className="text-sm font-light">
-                            {bin.currentBinStock > 0 ? "Terisi" : "Kosong"}
-                        </span>
-                        {bin.currentBinStock > 0 ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                      <span className="text-sm font-light">
+                        {bin.currentBinStock > 0 ? "Terisi" : "Kosong"}
+                      </span>
+                      {bin.currentBinStock > 0 ? (
+                        <CheckCircle2 size={16} />
+                      ) : (
+                        <Circle size={16} />
+                      )}
                     </Button>
                   ) : (
                     <Input
-                        id={`bin-${bin.binSequenceId}`}
-                        type="number"
-                        value={bin.currentBinStock}
-                        onChange={(e) =>
+                      id={`bin-${bin.binSequenceId}`}
+                      type="number"
+                      value={bin.currentBinStock}
+                      onChange={(e) =>
                         handleBinStockChange(index, e.target.value)
-                        }
-                        className={
+                      }
+                      className={
                         errors[`bin_${index}`] ? "border-destructive" : ""
-                        }
-                        disabled={isViewer}
+                      }
+                      disabled={isViewer}
                     />
                   )}
 
@@ -928,8 +907,7 @@ export function EditMaterialModal({
             Total Stok (SOH):{" "}
             <span
               className={`font-bold ${
-                stockHasChanged &&
-                nCurrentQuantity !== material.currentQuantity
+                stockHasChanged && nCurrentQuantity !== material.currentQuantity
                   ? "text-destructive"
                   : "text-primary"
               }`}
@@ -939,19 +917,17 @@ export function EditMaterialModal({
             | Vendor Stock:{" "}
             <span
               className={`font-bold ${
-                stockHasChanged &&
-                nVendorStock !== (material.vendorStock ?? 0)
+                stockHasChanged && nVendorStock !== (material.vendorStock ?? 0)
                   ? "text-destructive"
                   : "text-primary"
               }`}
             >
               {nVendorStock}
             </span>
-             | Open PO:{" "}
+            | Open PO:{" "}
             <span
               className={`font-bold ${
-                stockHasChanged &&
-                nOpenPO !== (material.openPO ?? 0)
+                stockHasChanged && nOpenPO !== (material.openPO ?? 0)
                   ? "text-destructive"
                   : "text-primary"
               }`}
@@ -975,7 +951,7 @@ export function EditMaterialModal({
             <span className="font-bold text-primary">{nTotalBinsMemo}</span> bin
             , masing-masing{" "}
             <span className="font-bold text-primary">
-              {nQuantityPerBinMemo}
+              {nQuantityPerBinMemo}x
             </span>{" "}
             pcs
           </p>
@@ -1002,11 +978,17 @@ export function EditMaterialModal({
                 <SelectValue placeholder="Pilih vendor" />
               </SelectTrigger>
               <SelectContent>
-                {HARDCODED_VENDORS.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
+                {vendors.length > 0 ? (
+                  vendors.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="loading" disabled>
+                    Memuat data vendor...
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
             {errors.vendorCode && (

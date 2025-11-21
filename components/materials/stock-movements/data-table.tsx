@@ -31,12 +31,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import React, { useMemo } from "react";
-import { StockMovement } from "@/lib/types";
+import { StockMovement, GoSqlNullInt } from "@/lib/types";
+
 
 export interface MergedStockMovement extends StockMovement {
   movementTypes: string[];
   sohDetails?: StockMovement;
   vendorDetails?: StockMovement;
+  relatedBins: number[]; 
 }
 
 interface DataTableProps {
@@ -50,33 +52,72 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  // ⭐ FIX: Grouping pakai composite key agar vendorDetails & sohDetails tidak terpisah
   const groupedData = useMemo(() => {
     const groups: Record<string, MergedStockMovement> = {};
 
     data.forEach((row) => {
-      // FIX KEY — konsisten & tidak bentrok microseconds
+      
       const key = [
         new Date(row.timestamp).toISOString(),
         row.materialCode,
-        row.binSequenceId?.Int64 ?? "no-bin",
-        row.movementType,
       ].join("_");
 
+      const isVendorAction = row.movementType.toLowerCase().includes("vendor");
+      
+      
+      let currentBinNum: number | null = null;
+      if (row.binSequenceId && row.binSequenceId.Valid) {
+        currentBinNum = row.binSequenceId.Int64;
+      }
+
       if (!groups[key]) {
+        
         groups[key] = {
           ...row,
           movementTypes: [row.movementType],
-          sohDetails: !row.movementType.toLowerCase().includes("vendor") ? row : undefined,
-          vendorDetails: row.movementType.toLowerCase().includes("vendor") ? row : undefined,
+          sohDetails: !isVendorAction ? row : undefined,
+          vendorDetails: isVendorAction ? row : undefined,
+          relatedBins: currentBinNum ? [currentBinNum] : [], 
         };
       } else {
-        groups[key].movementTypes.push(row.movementType);
+        
+        const group = groups[key];
 
-        if (!row.movementType.toLowerCase().includes("vendor")) {
-          groups[key].sohDetails = row;
+        
+        if (!group.movementTypes.includes(row.movementType)) {
+          group.movementTypes.push(row.movementType);
+        }
+
+        
+        if (currentBinNum && !group.relatedBins.includes(currentBinNum)) {
+          group.relatedBins.push(currentBinNum);
+          group.relatedBins.sort((a, b) => a - b); 
+        }
+
+        
+        if (isVendorAction) {
+          
+          
+          
+          group.vendorDetails = row;
         } else {
-          groups[key].vendorDetails = row;
+          
+          if (group.sohDetails) {
+             
+             
+             const mergedChange = group.sohDetails.quantityChange + row.quantityChange;
+             
+             
+             
+             group.sohDetails = {
+                 ...row,
+                 quantityChange: mergedChange,
+                 oldQuantity: group.sohDetails.oldQuantity, 
+                 newQuantity: row.newQuantity 
+             };
+          } else {
+             group.sohDetails = row;
+          }
         }
       }
     });
@@ -101,6 +142,7 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -122,7 +164,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           <DropdownMenuContent align="end" className="w-[180px]">
             <DropdownMenuLabel>Toggle kolom</DropdownMenuLabel>
             <DropdownMenuSeparator />
-
             {table.getAllLeafColumns().filter(col => col.getCanHide()).map((col) => (
               <DropdownMenuCheckboxItem
                 key={col.id}
@@ -147,7 +188,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
                 </span>
               </TableHead>
             </TableRow>
-
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id}>
                 {hg.headers.map(h => (
@@ -159,7 +199,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
               </TableRow>
             ))}
           </TableHeader>
-
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row => (
@@ -181,54 +220,33 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           </TableBody>
         </Table>
       </div>
-
+      
+      {}
       <div className="flex items-center justify-between py-4">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-light">Baris per halaman:</p>
-
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => table.setPageSize(Number(value))}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent side="top">
-              {[10, 15, 20, 25, 30, 50].map(size => (
-                <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <p className="text-sm font-light">Baris per halaman:</p>
+            <Select
+                value={`${table.getState().pagination.pageSize}`}
+                onValueChange={(value) => table.setPageSize(Number(value))}
+            >
+                <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
+                <SelectContent side="top">
+                {[10, 15, 20, 25, 30, 50].map(size => (
+                    <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
         </div>
-
         <div className="flex items-center space-x-4">
-          <div className="w-[100px] text-sm text-center">
-            Page {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              className="border text-black bg-background"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Back
-            </Button>
-
-            <Button
-              size="sm"
-              className="border text-black bg-background"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
-          </div>
+            <div className="w-[100px] text-sm text-center">
+                Page {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+            </div>
+            <div className="flex items-center space-x-2">
+                <Button size="sm" className="border text-black bg-background" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Back</Button>
+                <Button size="sm" className="border text-black bg-background" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+            </div>
         </div>
       </div>
     </div>
   );
 }
-

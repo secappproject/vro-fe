@@ -41,7 +41,6 @@ function formatMovementTypeHeader(t: string) {
 
   if (lower === "edit") return "Edit Stock";
   if (lower === "edit vendor") return "Edit Vendor Stock";
-
   if (lower === "scan in") return "Scan In Stock";
   if (lower === "scan out") return "Scan Out Stock";
   if (lower === "scan in vendor") return "Scan In Vendor Stock";
@@ -71,20 +70,49 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  const uniqueValues = Array.from(column.getFacetedUniqueValues().keys()).sort();
+  
+  const rawUniqueValues = Array.from(column.getFacetedUniqueValues().keys());
+
+  
+  const flattenedSet = new Set<unknown>();
+  rawUniqueValues.forEach((val) => {
+    if (Array.isArray(val)) {
+      val.forEach((v) => flattenedSet.add(v));
+    } else {
+      flattenedSet.add(val);
+    }
+  });
+
+  
+  const uniqueValues = Array.from(flattenedSet).sort((a: any, b: any) => {
+    if (typeof a === "number" && typeof b === "number") return a - b;
+    
+    
+    const strA = typeof a === "object" ? JSON.stringify(a) : String(a);
+    const strB = typeof b === "object" ? JSON.stringify(b) : String(b);
+    
+    return strA.localeCompare(strB);
+  });
+
   const selectedValues = new Set(column.getFilterValue() as string[]);
 
+  
   const getDisplayValue = (val: unknown): string => {
     if (val === null || val === undefined) {
       return "(Kosong)";
     }
 
-    // Khusus movement type biar wording-nya konsisten kayak di badge
+    
+    if (typeof val === "number") {
+      return `Bin ${val}`;
+    }
+
+    
     if (column.id === "movementType" && typeof val === "string") {
       return formatMovementTypeHeader(val);
     }
 
-    // NullString
+    
     if (
       typeof val === "object" &&
       val !== null &&
@@ -95,7 +123,7 @@ export function DataTableColumnHeader<TData, TValue>({
       return ns.Valid ? ns.String : "(Kosong)";
     }
 
-    // NullInt → Bin
+    
     if (
       typeof val === "object" &&
       val !== null &&
@@ -106,6 +134,7 @@ export function DataTableColumnHeader<TData, TValue>({
       return ni.Valid ? `Bin ${ni.Int64}` : "(Kosong)";
     }
 
+    
     if (typeof val === "string") {
       const date = new Date(val);
       if (!isNaN(date.getTime()) && val.includes("T") && val.includes("Z")) {
@@ -122,28 +151,15 @@ export function DataTableColumnHeader<TData, TValue>({
     return String(val);
   };
 
+  
   const getKey = (val: unknown): string => {
     if (val === null) return "__null__";
     if (val === undefined) return "__undefined__";
 
-    if (
-      typeof val === "object" &&
-      val !== null &&
-      "Valid" in val &&
-      "String" in val
-    ) {
-      const ns = val as NullString;
-      return `nullstring_${ns.Valid}_${ns.String}`;
-    }
-
-    if (
-      typeof val === "object" &&
-      val !== null &&
-      "Valid" in val &&
-      "Int64" in val
-    ) {
-      const ni = val as NullInt;
-      return `nullint_${ni.Valid}_${ni.Int64}`;
+    
+    
+    if (typeof val === "object") {
+      return JSON.stringify(val);
     }
 
     return String(val);
@@ -154,7 +170,11 @@ export function DataTableColumnHeader<TData, TValue>({
     displayValue: getDisplayValue(option),
   }));
 
-  const uniqueOptionsMap = new Map<string, { key: string; displayValue: string }>();
+  
+  const uniqueOptionsMap = new Map<
+    string,
+    { key: string; displayValue: string }
+  >();
   optionsWithKeys.forEach((item) => {
     if (!uniqueOptionsMap.has(item.displayValue)) {
       uniqueOptionsMap.set(item.displayValue, item);
@@ -196,7 +216,7 @@ export function DataTableColumnHeader<TData, TValue>({
 
                     return (
                       <CommandItem
-                        key={option.key}
+                        key={option.key} 
                         onSelect={() => {
                           if (isSelected) {
                             selectedValues.delete(option.displayValue);
