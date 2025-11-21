@@ -85,6 +85,47 @@ export const getMaterialColumns = (
     filterFn: exactFilterFn,
   },
   {
+    accessorKey: "minBinQty",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Min Qty" />
+    ),
+    id: "minBinQty",
+    enableColumnFilter: true,
+    enableHiding: true,
+    filterFn: exactFilterFn,
+  },
+  {
+    accessorKey: "packQuantity",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Pack Qty" />
+    ),
+    id: "packQuantity",
+    enableColumnFilter: true,
+    enableHiding: true,
+    filterFn: exactFilterFn,
+  },
+  {
+    accessorKey: "maxBinQty",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Max Qty" />
+    ),
+    id: "maxBinQty",
+    enableColumnFilter: true,
+    enableHiding: true,
+    filterFn: exactFilterFn,
+  },
+  {
+    id: "totalBins",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Total Bins" />
+    ),
+    accessorFn: (row) =>
+      row.packQuantity > 0 ? Math.ceil(row.maxBinQty / row.packQuantity) : 0,
+    enableColumnFilter: true,
+    enableHiding: true,
+    filterFn: exactFilterFn,
+  },
+  {
     
     id: "currentQuantity", 
     accessorFn: (row) => row.currentQuantity,
@@ -281,47 +322,5 @@ export const getMaterialColumns = (
         onMaterialDeleted={onMaterialDeleted}
       />
     ),
-  },
-  
-  {
-    accessorKey: "minBinQty",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Min Qty" />
-    ),
-    id: "minBinQty",
-    enableColumnFilter: true,
-    enableHiding: true,
-    filterFn: exactFilterFn,
-  },
-  {
-    accessorKey: "packQuantity",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Pack Qty" />
-    ),
-    id: "packQuantity",
-    enableColumnFilter: true,
-    enableHiding: true,
-    filterFn: exactFilterFn,
-  },
-  {
-    accessorKey: "maxBinQty",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Max Qty" />
-    ),
-    id: "maxBinQty",
-    enableColumnFilter: true,
-    enableHiding: true,
-    filterFn: exactFilterFn,
-  },
-  {
-    id: "totalBins",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Total Bins" />
-    ),
-    accessorFn: (row) =>
-      row.packQuantity > 0 ? Math.ceil(row.maxBinQty / row.packQuantity) : 0,
-    enableColumnFilter: true,
-    enableHiding: true,
-    filterFn: exactFilterFn,
   },
 ];
