@@ -174,9 +174,9 @@ export function ImportMaterialModal({
           for (const key in row)
             trimmed[key.trim()] = row[key] ? row[key].trim() : "";
 
-          const nPackQty = parseInt(trimmed["Pack Qty"], 10) || 0;
-          const nMax = parseInt(trimmed["Max Qty"], 10) || 0;
-          const nMin = parseInt(trimmed["Min Qty"], 10) || 0;
+          const nPackQty = parseInt(trimmed["Pack Qty"].replace(/[,.]/g, ""), 10) || 0;
+          const nMax = parseInt(trimmed["Max Qty"].replace(/[,.]/g, ""), 10) || 0;
+          const nMin = parseInt(trimmed["Min Qty"].replace(/[,.]/g, ""), 10) || 0;
           const code = trimmed["Kode Material"];
 
           if (!code) continue;
