@@ -667,6 +667,46 @@ export function EditMaterialModal({
         </div>
 
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
+          <Label htmlFor="vendorCode" className="text-left pt-2">
+            Vendor
+          </Label>
+          <div className="col-span-3">
+            <Select
+              value={vendorCode}
+              onValueChange={(value) => {
+                setVendorCode(value);
+                clearError("vendorCode");
+              }}
+              disabled={isViewer}
+            >
+              <SelectTrigger
+                className={errors.vendorCode ? "border-destructive" : ""}
+              >
+                <SelectValue placeholder="Pilih vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                {vendors.length > 0 ? (
+                  vendors.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="loading" disabled>
+                    Memuat data vendor...
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {errors.vendorCode && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.vendorCode}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="openPO" className="text-left pt-2">
             Open PO
           </Label>
@@ -959,45 +999,7 @@ export function EditMaterialModal({
         </div>
 
         {}
-        <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
-          <Label htmlFor="vendorCode" className="text-left pt-2">
-            Vendor
-          </Label>
-          <div className="col-span-3">
-            <Select
-              value={vendorCode}
-              onValueChange={(value) => {
-                setVendorCode(value);
-                clearError("vendorCode");
-              }}
-              disabled={isViewer}
-            >
-              <SelectTrigger
-                className={errors.vendorCode ? "border-destructive" : ""}
-              >
-                <SelectValue placeholder="Pilih vendor" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendors.length > 0 ? (
-                  vendors.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {code}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="loading" disabled>
-                    Memuat data vendor...
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {errors.vendorCode && (
-              <p className="text-xs text-destructive mt-1">
-                {errors.vendorCode}
-              </p>
-            )}
-          </div>
-        </div>
+        
       </div>
 
       <DialogFooter>
