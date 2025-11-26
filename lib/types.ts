@@ -1,25 +1,28 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-interface UserState {
-  username: string | null;
-  role: string | null;
-  companyName: string | null;
-  vendorType: string | null; 
-  isLoggedIn: boolean;
-  login: (userData: {
-    username: string;
-    role: string;
-    companyName: string | null;
-    vendorType: string | null; 
-  }) => void;
-  logout: () => void;
-}
-
 type NullString = {
   String: string;
   Valid: boolean;
 };
+
+interface UserState {
+  username: string | null;
+  role: string | null;
+  companyName: string | null;
+  vendorType: string | null;
+  isLoggedIn: boolean;
+  lastActivity: number; 
+
+  login: (userData: {
+    username: string;
+    role: string;
+    companyName: string | null;
+    vendorType: string | null;
+  }) => void;
+  logout: () => void;
+  updateActivity: () => void; 
+}
 
 export type User = {
   id: number;
@@ -95,30 +98,37 @@ export interface StockMovement {
   timestamp: string;
 }
 
+
 export const useAuthStore = create<UserState>()(
   persist(
     (set) => ({
       username: null,
       role: null,
       companyName: null,
-      vendorType: null, 
+      vendorType: null,
       isLoggedIn: false,
+      lastActivity: Date.now(), 
 
       login: (userData) => set({
         username: userData.username,
         role: userData.role,
         companyName: userData.companyName,
-        vendorType: userData.vendorType, 
+        vendorType: userData.vendorType,
         isLoggedIn: true,
+        lastActivity: Date.now(), 
       }),
 
       logout: () => set({
         username: null,
         role: null,
         companyName: null,
-        vendorType: null, 
+        vendorType: null,
         isLoggedIn: false,
+        lastActivity: 0,
       }),
+
+      
+      updateActivity: () => set({ lastActivity: Date.now() }),
     }),
     {
       name: 'auth-storage',

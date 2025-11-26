@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Sidebar } from "./sidebar"; 
 import { Header } from "./header";
+import { IdleTimer } from "@/components/idle-timer"; 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode; }) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -10,6 +11,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[auto_1fr]">
+      {}
+      <IdleTimer />
+
       <Sidebar isCollapsed={isCollapsed} />
       <div className="relative flex flex-col h-screen overflow-y-auto">
         <Header 
