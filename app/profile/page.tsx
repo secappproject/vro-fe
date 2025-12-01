@@ -21,10 +21,10 @@ export default function ProfilePage() {
   }
 
   if (role === "Superuser" || role === "Admin") {
-    // return <AdminProfileView />;
-    return <MaintenanceForm />;
+    return <AdminProfileView />;
+    // return <MaintenanceForm />;
   } else {
-    return <MaintenanceForm />;
-    // return <UserProfileView />;
+    // return <MaintenanceForm />;
+    return <UserProfileView />;
   }
 }
