@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   ColumnDef,
   SortingState,
@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Material, useAuthStore } from "@/lib/types";
+import { Material, useAuthStore, StockMovement } from "@/lib/types"; // Pastikan StockMovement diimport
 import { Input } from "@/components/ui/input";
 import { UnfoldHorizontalIcon, X, Download, History } from "lucide-react";
 import {
@@ -105,11 +105,14 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const role = useAuthStore((state) => state.role);
   const companyName = useAuthStore((state) => state.companyName);
 
-  const authHeaders = {
-    "X-User-Role": role || "",
-    "X-User-Company": companyName || "",
-    "Content-Type": "application/json",
-  };
+  // Perbaikan 1: Gunakan useMemo agar authHeaders stabil dan tidak memicu warning useEffect
+  const authHeaders = useMemo(() => {
+    return {
+      "X-User-Role": role || "",
+      "X-User-Company": companyName || "",
+      "Content-Type": "application/json",
+    };
+  }, [role, companyName]);
 
   const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
     const filterWords = String(filterValue)
@@ -161,7 +164,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
     table.setGlobalFilter(combinedFilter);
   }, [filterChips, inputValue, table]);
 
-  const fetchLastDownload = React.useCallback(async () => {
+  // Perbaikan 2: Tambahkan authHeaders ke dependency array
+  const fetchLastDownload = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/logs/last-download`, {
         method: "GET",
@@ -174,7 +178,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
     } catch (error) {
       console.error(error);
     }
-  }, [role, companyName]);
+  }, [authHeaders]);
 
   React.useEffect(() => {
     fetchLastDownload();
@@ -348,7 +352,9 @@ export function MaterialDataTable<TData extends Material, TValue>({
       });
 
       if (!response.ok) throw new Error("Gagal mengambil data history");
-      const movements: any[] = await response.json();
+      
+      // Perbaikan 3: Gunakan tipe StockMovement[], bukan any[]
+      const movements: StockMovement[] = await response.json();
 
       if (movements.length === 0) {
         alert("Tidak ada data history ditemukan.");
@@ -535,7 +541,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
                         <Label>Format</Label>
                         <RadioGroup
                           value={exportFormat}
-                          onValueChange={(v: any) => setExportFormat(v)}
+                          /* Perbaikan 4: Hapus 'any', gunakan casting */
+                          onValueChange={(v) => setExportFormat(v as "csv" | "pdf")}
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="csv" id="m-csv" />
@@ -551,7 +558,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
                         <Label>Orientasi PDF</Label>
                         <RadioGroup
                           value={pdfOrientation}
-                          onValueChange={(v: any) => setPdfOrientation(v)}
+                          onValueChange={(v) => setPdfOrientation(v as "portrait" | "landscape")}
                           disabled={exportFormat !== "pdf"}
                         >
                           <div className="flex items-center space-x-2">
@@ -576,7 +583,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
                         <Label>Format</Label>
                         <RadioGroup
                           value={exportFormat}
-                          onValueChange={(v: any) => setExportFormat(v)}
+                          onValueChange={(v) => setExportFormat(v as "csv" | "pdf")}
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="csv" id="h-csv" />
@@ -592,7 +599,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
                         <Label>Orientasi PDF</Label>
                         <RadioGroup
                           value={pdfOrientation}
-                          onValueChange={(v: any) => setPdfOrientation(v)}
+                          onValueChange={(v) => setPdfOrientation(v as "portrait" | "landscape")}
                           disabled={exportFormat !== "pdf"}
                         >
                           <div className="flex items-center space-x-2">
