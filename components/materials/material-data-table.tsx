@@ -1,4 +1,6 @@
-"use client"; 
+"use client";
+
+import React from "react";
 import {
   ColumnDef,
   SortingState,
@@ -25,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Material, useAuthStore } from "@/lib/types";
 import { Input } from "@/components/ui/input";
-import { UnfoldHorizontalIcon, X, Download } from "lucide-react";
+import { UnfoldHorizontalIcon, X, Download, History } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -43,7 +45,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -54,9 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { DataTableFacetedFilter } from "./data-table-faceted-filter";
-import React from "react";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -67,7 +66,7 @@ interface DataTableProps<TData extends Material, TValue> {
 
 interface LastDownloadInfo {
   username: string;
-  timestamp: string; 
+  timestamp: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -153,13 +152,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  const minBinQtyColumn = table.getColumn("minBinQty");
-  const packQuantityColumn = table.getColumn("packQuantity");
-  const maxBinQtyColumn = table.getColumn("maxBinQty");
-  const totalBinsColumn = table.getColumn("totalBins");
-  const currentQuantityColumn = table.getColumn("currentQuantity");
-  const productTypeColumn = table.getColumn("productType");
-
   React.useEffect(() => {
     const chipsString = filterChips.join(" ");
     const liveInputString = inputValue.trim().toLowerCase();
@@ -177,15 +169,13 @@ export function MaterialDataTable<TData extends Material, TValue>({
       });
       if (response.ok) {
         const data = await response.json();
-        setLastDownloadInfo(data); 
-      } else {
-        console.error("Gagal mengambil log download terakhir");
+        setLastDownloadInfo(data);
       }
     } catch (error) {
-      console.error("Error fetching last download:", error);
+      console.error(error);
     }
-  }, [role, companyName]); 
-  
+  }, [role, companyName]);
+
   React.useEffect(() => {
     fetchLastDownload();
   }, [fetchLastDownload]);
@@ -228,7 +218,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
       dateStyle: "full",
       timeStyle: "long",
     });
-
 
     const headers = [
       "Kode Material",
@@ -343,8 +332,113 @@ export function MaterialDataTable<TData extends Material, TValue>({
         });
         fetchLastDownload();
       } catch (error) {
-        console.error("Gagal mencatat log download:", error);
+        console.error(error);
       }
+    }
+  };
+
+  const handleDownloadAllHistory = async (
+    format: "csv" | "pdf",
+    orientation: "portrait" | "landscape"
+  ) => {
+    try {
+      const response = await fetch(`${API_URL}/api/movements`, {
+        method: "GET",
+        headers: authHeaders,
+      });
+
+      if (!response.ok) throw new Error("Gagal mengambil data history");
+      const movements: any[] = await response.json();
+
+      if (movements.length === 0) {
+        alert("Tidak ada data history ditemukan.");
+        return;
+      }
+
+      const now = new Date();
+      const filenameTimestamp = now.toISOString().split("T")[0];
+
+      const headers = [
+        "Waktu",
+        "Kode Material",
+        "Tipe",
+        "Perubahan",
+        "Qty Lama",
+        "Qty Baru",
+        "PIC",
+        "Notes",
+        "Bin ID",
+      ];
+
+      const dataToExport = movements.map((m) => {
+        const timestamp = new Date(m.timestamp).toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        const change =
+          m.quantityChange > 0 ? `+${m.quantityChange}` : `${m.quantityChange}`;
+
+        return [
+          timestamp,
+          m.materialCode,
+          m.movementType,
+          change,
+          m.oldQuantity,
+          m.newQuantity,
+          m.pic,
+          m.notes?.String || "-",
+          m.binSequenceId?.Valid ? m.binSequenceId.Int64 : "-",
+        ];
+      });
+
+      if (format === "csv") {
+        const escapeCsvCell = (cell: unknown) => {
+          const str = String(cell ?? "");
+          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        };
+
+        let csvContent = headers.join(",") + "\n";
+        dataToExport.forEach((rowArray) => {
+          csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
+        });
+
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `GLOBAL_HISTORY_${filenameTimestamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === "pdf") {
+        const doc = new jsPDF(orientation, "pt", "a4");
+        doc.setFontSize(14);
+        doc.text("Laporan Global History Stok", 40, 40);
+        doc.setFontSize(10);
+        doc.text(`Dicetak pada: ${now.toLocaleString("id-ID")}`, 40, 55);
+
+        autoTable(doc, {
+          startY: 70,
+          head: [headers],
+          body: dataToExport,
+          theme: "striped",
+          headStyles: { fillColor: [50, 50, 50] },
+          styles: { fontSize: 8, cellPadding: 2 },
+        });
+
+        doc.save(`GLOBAL_HISTORY_${filenameTimestamp}.pdf`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Gagal mendownload history.");
     }
   };
 
@@ -352,7 +446,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2 w-full max-w-lg">
-          {}
           <div className="flex items-center gap-2">
             <Input
               type="text"
@@ -398,7 +491,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
         <div className="flex items-center gap-2">
           <div className="flex flex-row items-center gap-2">
-            {}
             {lastDownloadInfo && (
               <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                 Last Download: {lastDownloadInfo.username} @{" "}
@@ -413,74 +505,126 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="ml-auto hidden h-9 lg:flex"
+                  className="ml-auto hidden h-9 lg:flex gap-2"
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Extract
+                  <Download className="h-4 w-4" />
+                  Extract Data
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Pilih Format Ekstrak</AlertDialogTitle>
+                  <AlertDialogTitle>Ekstrak Data</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Pilih format file dan orientasi halaman untuk PDF.
+                    Pilih jenis data yang ingin diunduh.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                <div className="grid grid-cols-2 gap-4 py-4">
-                  {}
-                  <div className="space-y-2">
-                    <Label>Format File</Label>
-                    <RadioGroup
-                      value={exportFormat}
-                      onValueChange={(value) =>
-                        setExportFormat(value as "csv" | "pdf")
+                <Tabs defaultValue="material" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="material">
+                      Data Material (Stok Saat Ini)
+                    </TabsTrigger>
+                    <TabsTrigger value="history">
+                      History Pergerakan (Log)
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="material" className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Format</Label>
+                        <RadioGroup
+                          value={exportFormat}
+                          onValueChange={(v: any) => setExportFormat(v)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="csv" id="m-csv" />
+                            <Label htmlFor="m-csv">CSV</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="pdf" id="m-pdf" />
+                            <Label htmlFor="m-pdf">PDF</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Orientasi PDF</Label>
+                        <RadioGroup
+                          value={pdfOrientation}
+                          onValueChange={(v: any) => setPdfOrientation(v)}
+                          disabled={exportFormat !== "pdf"}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="portrait" id="m-p" />
+                            <Label htmlFor="m-p">Portrait</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="landscape" id="m-l" />
+                            <Label htmlFor="m-l">Landscape</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                    <Button className="w-full" onClick={handleDownload}>
+                      Download Stok Saat Ini
+                    </Button>
+                  </TabsContent>
+
+                  <TabsContent value="history" className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Format</Label>
+                        <RadioGroup
+                          value={exportFormat}
+                          onValueChange={(v: any) => setExportFormat(v)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="csv" id="h-csv" />
+                            <Label htmlFor="h-csv">CSV</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="pdf" id="h-pdf" />
+                            <Label htmlFor="h-pdf">PDF</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Orientasi PDF</Label>
+                        <RadioGroup
+                          value={pdfOrientation}
+                          onValueChange={(v: any) => setPdfOrientation(v)}
+                          disabled={exportFormat !== "pdf"}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="portrait" id="h-p" />
+                            <Label htmlFor="h-p">Portrait</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="landscape" id="h-l" />
+                            <Label htmlFor="h-l">Landscape</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-slate-700 hover:bg-slate-800"
+                      onClick={() =>
+                        handleDownloadAllHistory(exportFormat, pdfOrientation)
                       }
                     >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="csv" id="r-csv" />
-                        <Label htmlFor="r-csv">CSV</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="pdf" id="r-pdf" />
-                        <Label htmlFor="r-pdf">PDF</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Orientasi PDF</Label>
-                    <RadioGroup
-                      value={pdfOrientation}
-                      onValueChange={(value) =>
-                        setPdfOrientation(value as "portrait" | "landscape")
-                      }
-                      disabled={exportFormat !== "pdf"}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="portrait" id="r-portrait" />
-                        <Label htmlFor="r-portrait">Portrait</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="landscape" id="r-landscape" />
-                        <Label htmlFor="r-landscape">Landscape</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </div>
+                      <History className="mr-2 h-4 w-4" /> Download Semua History
+                    </Button>
+                  </TabsContent>
+                </Tabs>
 
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  {}
-                  <AlertDialogAction onClick={handleDownload}>
-                    Download
-                  </AlertDialogAction>
+                  <AlertDialogCancel>Tutup</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </div>
 
           <DropdownMenu>
-            {}
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
@@ -518,33 +662,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {/* {currentQuantityColumn && (
-          <DataTableFacetedFilter
-            column={currentQuantityColumn}
-            title="Stok Bin"
-          />
-        )}
-        {minBinQtyColumn && (
-          <DataTableFacetedFilter column={minBinQtyColumn} title="Min Qty" />
-        )}
-        {packQuantityColumn && (
-          <DataTableFacetedFilter
-            column={packQuantityColumn}
-            title="Pack Qty"
-          />
-        )}
-        {maxBinQtyColumn && (
-          <DataTableFacetedFilter column={maxBinQtyColumn} title="Max Qty" />
-        )}
-        {totalBinsColumn && (
-          <DataTableFacetedFilter column={totalBinsColumn} title="Total Bins" />
-        )} */}
-      </div>
-
       <div className="rounded-md border">
         <Table>
-          {}
           <TableHeader>
             <TableRow>
               <TableHead
@@ -572,7 +691,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          {}
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -604,7 +722,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </Table>
       </div>
       <div className="flex items-center justify-between py-4">
-        {}
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
           <Select
