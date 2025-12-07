@@ -1,206 +1,780 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Material, useAuthStore } from "@/lib/types";
+import React, { useMemo, useCallback } from "react";
+import {
+  ColumnDef,
+  SortingState,
+  ColumnFiltersState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  FilterFn,
+} from "@tanstack/react-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Material, useAuthStore, StockMovement } from "@/lib/types"; // Pastikan StockMovement diimport
+import { Input } from "@/components/ui/input";
+import { UnfoldHorizontalIcon, X, Download, History } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-import { PlusCircle, QrCode, Import, FileSpreadsheet } from "lucide-react";
+interface DataTableProps<TData extends Material, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+}
 
-import { getMaterialColumns } from "@/components/materials/columns";
-import { MaterialDataTable } from "@/components/materials/material-data-table";
-import { MaterialAuthSkeleton } from "./material-skeleton";
-import { AddMaterialModal } from "./add-material.modal";
-import { AutoScanMaterialModal } from "./scan-material-modal";
-import { ImportMaterialModal } from "./import-material-modal";
-import { ImportVendorStockModal } from "./import-vendor-stock-modal";
+interface LastDownloadInfo {
+  username: string;
+  timestamp: string;
+}
 
-export function MaterialPage() {
-  const [data, setData] = useState<Material[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isVendorImportOpen, setIsVendorImportOpen] = useState(false); 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-  const { role, companyName } = useAuthStore();
-  const [isClient, setIsClient] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    setIsClient(true);
-    if (!role) {
-      router.push("/");
-    }
-  }, [role, router]);
-
-  async function getMaterialData() {
-    if (!role) return;
-    setIsLoading(true);
-    try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/materials/`;
-      const res = await fetch(apiUrl, {
-        headers: {
-          "X-User-Role": role,
-          "X-User-Company": companyName || "",
-        },
-      });
-      if (!res.ok) {
-        throw new Error("Gagal mengambil data material");
-      }
-      const materials = await res.json();
-      setData(materials || []);
-    } catch (error) {
-      console.error("Error fetching material data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (role) {
-      getMaterialData();
-    }
-  }, [role, companyName]);
-
-  const handleMaterialUpdated = (updatedMaterial: Material) => {
-    setData((prevData) =>
-      prevData.map((material) =>
-        material.id === updatedMaterial.id ? updatedMaterial : material
-      )
-    );
-  };
-
-  const handleMaterialDeleted = (materialId: number) => {
-    setData((prevData) =>
-      prevData.filter((material) => material.id !== materialId)
-    );
-  };
-
-  const handleMaterialAdded = (newMaterial: Material) => {
-    setData((prevData) => [newMaterial, ...prevData]);
-    getMaterialData();
-  };
-
-  const handleScansSaved = () => {
-    getMaterialData();
-  };
-
-  const columns = getMaterialColumns(
-    handleMaterialUpdated,
-    handleMaterialDeleted
+export function MaterialDataTable<TData extends Material, TValue>({
+  columns,
+  data,
+}: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
   );
 
-  
-  const canScan = role === "Superuser" || role === "Admin";
-  
-  const canImportMaster = role === "Superuser"; 
-  
-  const canImportVendorStock = role === "Superuser" || role === "Admin" || role === "Vendor";
-  const canAdd = role === "Superuser";
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({
+      minBinQty: false,
+      packQuantity: false,
+      maxBinQty: false,
+      totalBins: false,
+      pic: false,
+    });
 
-  if (!isClient || !role) {
-    return <MaterialAuthSkeleton />;
-  }
-  if (isLoading) {
-    return <MaterialAuthSkeleton />;
-  }
+  const [globalFilter, setGlobalFilter] = React.useState("");
+  const [inputValue, setInputValue] = React.useState("");
+  const [filterChips, setFilterChips] = React.useState<string[]>([]);
+
+  const [exportFormat, setExportFormat] = React.useState<"csv" | "pdf">("csv");
+  const [pdfOrientation, setPdfOrientation] = React.useState<
+    "portrait" | "landscape"
+  >("portrait");
+
+  const [lastDownloadInfo, setLastDownloadInfo] =
+    React.useState<LastDownloadInfo | null>(null);
+
+  const username = useAuthStore((state) => state.username);
+  const role = useAuthStore((state) => state.role);
+  const companyName = useAuthStore((state) => state.companyName);
+
+  // Perbaikan 1: Gunakan useMemo agar authHeaders stabil dan tidak memicu warning useEffect
+  const authHeaders = useMemo(() => {
+    return {
+      "X-User-Role": role || "",
+      "X-User-Company": companyName || "",
+      "Content-Type": "application/json",
+    };
+  }, [role, companyName]);
+
+  const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
+    const filterWords = String(filterValue)
+      .toLowerCase()
+      .split(" ")
+      .filter(Boolean);
+    if (filterWords.length === 0) return true;
+
+    const rowText = row
+      .getVisibleCells()
+      .map((cell) => String(cell.getValue() ?? ""))
+      .join(" ")
+      .toLowerCase();
+
+    return filterWords.every((word) => rowText.includes(word));
+  };
+
+  const table = useReactTable<TData>({
+    data,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+      columnVisibility,
+    },
+    filterFns: {
+      multiWord: multiWordFilterFn,
+    },
+    globalFilterFn: multiWordFilterFn,
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
+  React.useEffect(() => {
+    const chipsString = filterChips.join(" ");
+    const liveInputString = inputValue.trim().toLowerCase();
+    const combinedFilter = [chipsString, liveInputString]
+      .filter(Boolean)
+      .join(" ");
+    table.setGlobalFilter(combinedFilter);
+  }, [filterChips, inputValue, table]);
+
+  // Perbaikan 2: Tambahkan authHeaders ke dependency array
+  const fetchLastDownload = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/logs/last-download`, {
+        method: "GET",
+        headers: authHeaders,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLastDownloadInfo(data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [authHeaders]);
+
+  React.useEffect(() => {
+    fetchLastDownload();
+  }, [fetchLastDownload]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const newChip = inputValue.trim().toLowerCase();
+    if (event.key === "Enter" && newChip !== "") {
+      event.preventDefault();
+      if (!filterChips.includes(newChip)) {
+        setFilterChips((prev) => [...prev, newChip]);
+      }
+      setInputValue("");
+    }
+  };
+
+  const removeChip = (chipToRemove: string) => {
+    setFilterChips((prev) => prev.filter((chip) => chip !== chipToRemove));
+  };
+
+  const isFiltered =
+    filterChips.length > 0 || table.getState().columnFilters.length > 0;
+
+  const resetFilters = () => {
+    table.resetColumnFilters();
+    setFilterChips([]);
+    setInputValue("");
+    table.setGlobalFilter(undefined);
+  };
+
+  const handleDownload = async () => {
+    const rows = table.getFilteredRowModel().rows;
+    if (rows.length === 0) {
+      alert("Tidak ada data terfilter untuk diekstrak.");
+      return;
+    }
+
+    const now = new Date();
+    const filenameTimestamp = now.toISOString().split("T")[0];
+    const reportTimestamp = now.toLocaleString("id-ID", {
+      dateStyle: "full",
+      timeStyle: "long",
+    });
+
+    const headers = [
+      "Kode Material",
+      "Deskripsi",
+      "SoH (Total Stok)",
+      "Replenishment (Bin Kosong)",
+      "Remark",
+      "Vendor",
+      "Vendor Stock",
+      "Lokasi",
+      "Tipe",
+      "Min Qty",
+      "Pack Qty",
+      "Max Qty",
+      "Total Bins",
+      "PIC",
+      "Rincian Stok Bin",
+    ];
+
+    const dataToExport = rows.map((row) => {
+      const original = row.original;
+      let binDetails = "-";
+      if (
+        original.productType !== "kanban" &&
+        original.bins &&
+        original.bins.length > 0
+      ) {
+        binDetails = original.bins
+          .map((b) => `Bin ${b.binSequenceId}: ${b.currentBinStock}`)
+          .join(" | ");
+      } else if (original.productType === "kanban") {
+        binDetails = "Kanban System";
+      }
+
+      return [
+        row.getValue("material"),
+        row.getValue("materialDescription"),
+        row.getValue("soh"),
+        row.getValue("replenishment"),
+        row.getValue("remark"),
+        row.getValue("vendorCode"),
+        row.getValue("vendorStock"),
+        row.getValue("lokasi"),
+        row.getValue("productType"),
+        row.getValue("minBinQty"),
+        row.getValue("packQuantity"),
+        row.getValue("maxBinQty"),
+        row.getValue("totalBins"),
+        row.getValue("pic"),
+        binDetails,
+      ];
+    });
+
+    if (exportFormat === "csv") {
+      const escapeCsvCell = (cell: unknown) => {
+        const str = String(cell ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      let csvContent = headers.join(",") + "\n";
+      dataToExport.forEach((rowArray) => {
+        csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `material_extract_${filenameTimestamp}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (exportFormat === "pdf") {
+      const doc = new jsPDF(pdfOrientation, "pt", "a4");
+
+      doc.setFontSize(16);
+      doc.text("Laporan Ekstrak Material", 40, 40);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Diekstrak pada: ${reportTimestamp}`, 40, 55);
+
+      autoTable(doc, {
+        startY: 70,
+        head: [headers],
+        body: dataToExport.map((row) => row.map((cell) => String(cell ?? "-"))),
+        theme: "striped",
+        headStyles: { fillColor: [38, 38, 38] },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      doc.save(`material_extract_${filenameTimestamp}.pdf`);
+    }
+
+    if (username) {
+      try {
+        await fetch(`${API_URL}/api/logs/download`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({ username: username }),
+        });
+        fetchLastDownload();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDownloadAllHistory = async (
+    format: "csv" | "pdf",
+    orientation: "portrait" | "landscape"
+  ) => {
+    try {
+      const response = await fetch(`${API_URL}/api/movements`, {
+        method: "GET",
+        headers: authHeaders,
+      });
+
+      if (!response.ok) throw new Error("Gagal mengambil data history");
+      
+      // Perbaikan 3: Gunakan tipe StockMovement[], bukan any[]
+      const movements: StockMovement[] = await response.json();
+
+      if (movements.length === 0) {
+        alert("Tidak ada data history ditemukan.");
+        return;
+      }
+
+      const now = new Date();
+      const filenameTimestamp = now.toISOString().split("T")[0];
+
+      const headers = [
+        "Waktu",
+        "Kode Material",
+        "Tipe",
+        "Perubahan",
+        "Qty Lama",
+        "Qty Baru",
+        "PIC",
+        "Notes",
+        "Bin ID",
+      ];
+
+      const dataToExport = movements.map((m) => {
+        const timestamp = new Date(m.timestamp).toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        const change =
+          m.quantityChange > 0 ? `+${m.quantityChange}` : `${m.quantityChange}`;
+
+        return [
+          timestamp,
+          m.materialCode,
+          m.movementType,
+          change,
+          m.oldQuantity,
+          m.newQuantity,
+          m.pic,
+          m.notes?.String || "-",
+          m.binSequenceId?.Valid ? m.binSequenceId.Int64 : "-",
+        ];
+      });
+
+      if (format === "csv") {
+        const escapeCsvCell = (cell: unknown) => {
+          const str = String(cell ?? "");
+          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        };
+
+        let csvContent = headers.join(",") + "\n";
+        dataToExport.forEach((rowArray) => {
+          csvContent += rowArray.map(escapeCsvCell).join(",") + "\n";
+        });
+
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `GLOBAL_HISTORY_${filenameTimestamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === "pdf") {
+        const doc = new jsPDF(orientation, "pt", "a4");
+        doc.setFontSize(14);
+        doc.text("Laporan Global History Stok", 40, 40);
+        doc.setFontSize(10);
+        doc.text(`Dicetak pada: ${now.toLocaleString("id-ID")}`, 40, 55);
+
+        autoTable(doc, {
+          startY: 70,
+          head: [headers],
+          body: dataToExport,
+          theme: "striped",
+          headStyles: { fillColor: [50, 50, 50] },
+          styles: { fontSize: 8, cellPadding: 2 },
+        });
+
+        doc.save(`GLOBAL_HISTORY_${filenameTimestamp}.pdf`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Gagal mendownload history.");
+    }
+  };
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="md:flex md:justify-between md:items-center mb-4">
-        <div className="mb-4 md:mb-0">
-          <h1 className="text-3xl">Replenishment Stock Monitoring</h1>
-          <p className="text-muted-foreground font-light mt-1">
-            Vendor Managed Inventory (VMI)
-          </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-2 w-full max-w-lg">
+          <div className="flex items-center gap-2">
+            <Input
+              type="text"
+              placeholder={
+                filterChips.length === 0
+                  ? "Cari, lalu tekan Enter..."
+                  : "Tambah filter..."
+              }
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-grow"
+            />
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={resetFilters}
+                className="h-9 px-2 lg:px-3"
+              >
+                Reset <X className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {filterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {filterChips.map((chip) => (
+                <div
+                  key={chip}
+                  className="flex items-center gap-1 bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-sm"
+                >
+                  <span>{chip}</span>
+                  <button
+                    onClick={() => removeChip(chip)}
+                    className="rounded-full hover:bg-muted/50"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col md:flex-row gap-2">
-          {}
-          {canImportVendorStock && (
-            <Button
-              variant="outline"
-              onClick={() => setIsVendorImportOpen(true)}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Import Supplier Stock
-            </Button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-row items-center gap-2">
+            {lastDownloadInfo && (
+              <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                Last Download: {lastDownloadInfo.username} @{" "}
+                {new Date(lastDownloadInfo.timestamp).toLocaleString("id-ID", {
+                  timeStyle: "short",
+                  dateStyle: "short",
+                })}
+              </span>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto hidden h-9 lg:flex gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Extract Data
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Ekstrak Data</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Pilih jenis data yang ingin diunduh.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
 
-          {}
-          {canImportMaster && (
-            <Button
-              variant="outline"
-              className="flex w-full md:w-auto"
-              onClick={() => setIsImportModalOpen(true)}
-            >
-              <Import className="mr-2 h-4 w-4" />
-              Import Master Data
-            </Button>
-          )}
+                <Tabs defaultValue="material" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="material">
+                      Data Material (Stok Saat Ini)
+                    </TabsTrigger>
+                    <TabsTrigger value="history">
+                      History Pergerakan (Log)
+                    </TabsTrigger>
+                  </TabsList>
 
-          {}
-          {canScan && (
-            <Button
-              variant="outline"
-              className="flex w-full md:w-auto"
-              onClick={() => setIsScanModalOpen(true)}
-            >
-              <QrCode className="mr-2 h-4 w-4" />
-              Scan Stok (Otomatis)
-            </Button>
-          )}
+                  <TabsContent value="material" className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Format</Label>
+                        <RadioGroup
+                          value={exportFormat}
+                          /* Perbaikan 4: Hapus 'any', gunakan casting */
+                          onValueChange={(v) => setExportFormat(v as "csv" | "pdf")}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="csv" id="m-csv" />
+                            <Label htmlFor="m-csv">CSV</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="pdf" id="m-pdf" />
+                            <Label htmlFor="m-pdf">PDF</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Orientasi PDF</Label>
+                        <RadioGroup
+                          value={pdfOrientation}
+                          onValueChange={(v) => setPdfOrientation(v as "portrait" | "landscape")}
+                          disabled={exportFormat !== "pdf"}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="portrait" id="m-p" />
+                            <Label htmlFor="m-p">Portrait</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="landscape" id="m-l" />
+                            <Label htmlFor="m-l">Landscape</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                    <Button className="w-full" onClick={handleDownload}>
+                      Download Stok Saat Ini
+                    </Button>
+                  </TabsContent>
 
-          {}
-          {canAdd && (
-            <Button
-              className="flex w-full md:w-auto"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Tambah Material
-            </Button>
-          )}
+                  <TabsContent value="history" className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Format</Label>
+                        <RadioGroup
+                          value={exportFormat}
+                          onValueChange={(v) => setExportFormat(v as "csv" | "pdf")}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="csv" id="h-csv" />
+                            <Label htmlFor="h-csv">CSV</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="pdf" id="h-pdf" />
+                            <Label htmlFor="h-pdf">PDF</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Orientasi PDF</Label>
+                        <RadioGroup
+                          value={pdfOrientation}
+                          onValueChange={(v) => setPdfOrientation(v as "portrait" | "landscape")}
+                          disabled={exportFormat !== "pdf"}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="portrait" id="h-p" />
+                            <Label htmlFor="h-p">Portrait</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="landscape" id="h-l" />
+                            <Label htmlFor="h-l">Landscape</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-slate-700 hover:bg-slate-800"
+                      onClick={() =>
+                        handleDownloadAllHistory(exportFormat, pdfOrientation)
+                      }
+                    >
+                      <History className="mr-2 h-4 w-4" /> Download Semua History
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Tutup</AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden h-9 lg:flex"
+              >
+                <UnfoldHorizontalIcon className="mr-2 h-4 w-4" />
+                View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px]">
+              <DropdownMenuLabel>Toggle kolom</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table
+                .getAllLeafColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {column.id
+                        .replace(/([A-Z])/g, " $1")
+                        .replace(/^./, (str) => str.toUpperCase())}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      <MaterialDataTable columns={columns} data={data} />
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                colSpan={columns.length}
+                className="h-10 align-middle"
+              >
+                <span className="text-sm font-light text-muted-foreground">
+                  Total {table.getFilteredRowModel().rows.length} data
+                </span>
+              </TableHead>
+            </TableRow>
 
-      {}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <AddMaterialModal
-          setIsOpen={setIsAddModalOpen}
-          onMaterialAdded={handleMaterialAdded}
-        />
-      </Dialog>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell className="font-light" key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center font-light"
+                >
+                  Tidak ada data.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-between py-4">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm font-light">Baris per halaman:</p>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => {
+              table.setPageSize(Number(value));
+            }}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={table.getState().pagination.pageSize} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 15, 20, 25, 30].map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {}
-      <Dialog open={isScanModalOpen} onOpenChange={setIsScanModalOpen}>
-        <AutoScanMaterialModal
-          setIsOpen={setIsScanModalOpen}
-          onScansSaved={handleScansSaved}
-        />
-      </Dialog>
-
-      {}
-      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-        <ImportMaterialModal
-          setIsOpen={setIsImportModalOpen}
-          onImportSuccess={getMaterialData}
-        />
-      </Dialog>
-
-      {}
-      <Dialog open={isVendorImportOpen} onOpenChange={setIsVendorImportOpen}>
-        <ImportVendorStockModal
-          setIsOpen={setIsVendorImportOpen}
-          onImportSuccess={getMaterialData}
-        />
-      </Dialog>
+        <div className="flex items-center space-x-4">
+          <div className="flex w-[100px] items-center justify-center text-sm font-light">
+            Page {table.getState().pagination.pageIndex + 1} /{" "}
+            {table.getPageCount()}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              className="border text-black bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Back
+            </Button>
+            <Button
+              className="border text-black bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
