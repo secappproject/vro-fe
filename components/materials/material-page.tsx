@@ -99,7 +99,7 @@ export function MaterialPage() {
   
   const canImportMaster = role === "Superuser"; 
   
-  const canImportVendorStock = role === "Superuser" || role === "Admin" || role === "Vendor";
+  const canImportVendorStock = role === "Superuser"  || role === "Vendor";
   const canAdd = role === "Superuser";
 
   if (!isClient || !role) {

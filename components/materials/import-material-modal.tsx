@@ -12,14 +12,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useAuthStore } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuthStore, MaterialBin } from "@/lib/types"; 
 import Papa from "papaparse";
-import { FileChartLine, UploadCloud, X } from "lucide-react";
+import { FileSpreadsheet, UploadCloud, X, Download, AlertCircle } from "lucide-react";
 
 interface ImportMaterialModalProps {
   setIsOpen: (open: boolean) => void;
   onImportSuccess: () => void;
 }
+
 interface MaterialPayload {
   material: string;
   materialDescription: string;
@@ -28,13 +30,17 @@ interface MaterialPayload {
   maxBinQty: number;
   minBinQty: number;
   vendorCode: string;
+  productType: "kanban" | "consumable" | "option";
+  bins?: Partial<MaterialBin>[];
 }
 
 interface ValidationRow {
   rowNum: number;
   materialCode: string;
-  maxQty: number;
-  minQty: number;
+  
+  col1: number; 
+  
+  col2: number; 
   message: string;
   originalRow: Record<string, string>;
 }
@@ -59,13 +65,32 @@ export function ImportMaterialModal({
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [uploadPercent, setUploadPercent] = useState(0);
+  
+  
+  const [activeTab, setActiveTab] = useState<"kanban" | "consumable" | "option">("kanban");
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const [validationRows, setValidationRows] = useState<ValidationRow[]>([]);
   const [validPayloads, setValidPayloads] = useState<MaterialPayload[]>([]);
+  
   const authRole = useAuthStore((state) => state.role);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const resetState = () => {
+    setSelectedFile(null);
+    setValidationRows([]);
+    setValidPayloads([]);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as any);
+    resetState();
+  };
 
   const handleFileSelect = (file: File | undefined) => {
     setError(null);
@@ -75,7 +100,7 @@ export function ImportMaterialModal({
       setSelectedFile(null);
       return;
     }
-    if (file.type !== "text/csv") {
+    if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
       setError("File harus berekstensi .csv");
       setSelectedFile(null);
       return;
@@ -83,57 +108,46 @@ export function ImportMaterialModal({
     setSelectedFile(file);
   };
 
-  const handleDragEnter = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-  const handleDragLeave = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
+  const handleDragEnter = (e: DragEvent<HTMLLabelElement>) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: DragEvent<HTMLLabelElement>) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragging(false);
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setValidationRows([]);
-    setValidPayloads([]);
-    setError(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
+  
   const handleDownloadTemplate = () => {
-    const headers = [
-      "Kode Material",
-      "Deskripsi",
-      "Lokasi",
-      "Pack Qty",
-      "Max Qty",
-      "Min Qty",
-      "Vendor",
-    ];
+    let headers = ["Kode Material", "Deskripsi", "Lokasi", "Vendor"];
+
+    if (activeTab === "kanban") {
+      
+      headers.push("Pack Qty", "Max Qty");
+    } else if (activeTab === "consumable") {
+      headers.push("Pack Qty", "Total Bins", "Qty Per Bin");
+    } else if (activeTab === "option") {
+      headers.push("Total Bins", "Qty Per Bin");
+    }
+
     const csvContent = headers.join(",");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "template-import-material.csv";
+    link.download = `template-import-${activeTab}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleUpload = async () => {
+  
+  const handleAnalyze = async () => {
     if (!selectedFile) {
       setError("Silakan pilih file CSV untuk diimpor.");
       return;
     }
 
     setIsLoading(true);
-    setProgress("Membaca file...");
-    setUploadPercent(0);
+    setProgress("Menganalisis file...");
     setError(null);
     setValidationRows([]);
 
@@ -143,23 +157,24 @@ export function ImportMaterialModal({
       complete: async (results) => {
         const data = results.data as Record<string, string>[];
         const fields = (results.meta.fields || []).map((f) => f.trim());
-        const requiredHeaders = [
-          "Kode Material",
-          "Pack Qty",
-          "Max Qty",
-          "Min Qty",
-          "Vendor",
-        ];
-        const missingHeaders = requiredHeaders.filter(
-          (h) => !fields.includes(h)
-        );
+        
+        const baseHeaders = ["Kode Material", "Vendor"];
+        let typeHeaders: string[] = [];
+
+        if (activeTab === "kanban") {
+          
+          typeHeaders = ["Pack Qty", "Max Qty"];
+        } else if (activeTab === "consumable") {
+          typeHeaders = ["Pack Qty", "Total Bins", "Qty Per Bin"];
+        } else if (activeTab === "option") {
+          typeHeaders = ["Total Bins", "Qty Per Bin"];
+        }
+
+        const requiredHeaders = [...baseHeaders, ...typeHeaders];
+        const missingHeaders = requiredHeaders.filter(h => !fields.includes(h));
 
         if (missingHeaders.length > 0) {
-          setError(
-            `Header CSV tidak valid. Header yang hilang: ${missingHeaders.join(
-              ", "
-            )}`
-          );
+          setError(`Header CSV salah untuk tipe ${activeTab.toUpperCase()}. Header wajib ada: ${missingHeaders.join(", ")}`);
           setIsLoading(false);
           return;
         }
@@ -171,38 +186,76 @@ export function ImportMaterialModal({
           const row = data[i];
           const rowNum = i + 2;
           const trimmed: Record<string, string> = {};
-          for (const key in row)
-            trimmed[key.trim()] = row[key] ? row[key].trim() : "";
+          for (const key in row) trimmed[key.trim()] = row[key] ? row[key].trim() : "";
 
-          const nPackQty = parseInt(trimmed["Pack Qty"].replace(/[,.]/g, ""), 10) || 0;
-          const nMax = parseInt(trimmed["Max Qty"].replace(/[,.]/g, ""), 10) || 0;
-          const nMin = parseInt(trimmed["Min Qty"].replace(/[,.]/g, ""), 10) || 0;
           const code = trimmed["Kode Material"];
+          if (!code) continue; 
 
-          if (!code) continue;
+          const pInt = (key: string) => parseInt(trimmed[key]?.replace(/[,.]/g, "") || "0", 10);
 
-          const roundedMax = roundUpToPack(nMax, nPackQty);
-          const roundedMin = roundUpToPack(nMin, nPackQty);
+          if (activeTab === "kanban") {
+            
+            const packQty = pInt("Pack Qty");
+            const rawMax = pInt("Max Qty");
+            
+            
+            const roundedMax = roundUpToPack(rawMax, packQty);
+            const minQty = packQty; 
 
-          if (roundedMax < roundedMin) {
-            valErrs.push({
-              rowNum,
-              materialCode: code,
-              maxQty: roundedMax,
-              minQty: roundedMin,
-              message: `Max Qty (${roundedMax}) < Min Qty (${roundedMin}) (Setelah round-up ke Pack Qty ${nPackQty})`,
-              originalRow: trimmed,
-            });
+            if (packQty <= 0) {
+              valErrs.push({ rowNum, materialCode: code, col1: rawMax, col2: packQty, message: "Pack Qty harus > 0", originalRow: trimmed });
+            } else if (roundedMax < minQty) {
+              valErrs.push({ rowNum, materialCode: code, col1: roundedMax, col2: packQty, message: `Max (${roundedMax}) < Pack/Min (${packQty})`, originalRow: trimmed });
+            } else {
+              valPayloads.push({
+                material: code,
+                materialDescription: trimmed["Deskripsi"] || "",
+                lokasi: trimmed["Lokasi"] || "",
+                packQuantity: packQty,
+                maxBinQty: roundedMax,
+                minBinQty: minQty, 
+                vendorCode: trimmed["Vendor"],
+                productType: "kanban",
+                bins: [] 
+              });
+            }
+
           } else {
-            valPayloads.push({
-              material: code,
-              materialDescription: trimmed["Deskripsi"] || "",
-              lokasi: trimmed["Lokasi"] || "",
-              packQuantity: nPackQty,
-              maxBinQty: roundedMax,
-              minBinQty: roundedMin,
-              vendorCode: trimmed["Vendor"],
-            });
+            
+            const totalBins = pInt("Total Bins");
+            const qtyPerBin = pInt("Qty Per Bin");
+            
+            let packQty = 1; 
+            if (activeTab === "consumable") {
+              packQty = pInt("Pack Qty");
+            }
+
+            if (totalBins <= 0 || qtyPerBin <= 0) {
+              valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: "Total Bins & Qty Per Bin harus > 0", originalRow: trimmed });
+            } else if (activeTab === "consumable" && packQty <= 0) {
+               valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: "Pack Qty harus > 0", originalRow: trimmed });
+            } else if (qtyPerBin < packQty) {
+              valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: `Qty Per Bin (${qtyPerBin}) < Pack Qty (${packQty})`, originalRow: trimmed });
+            } else {
+              
+              const generatedBins = Array.from({ length: totalBins }, (_, idx) => ({
+                binSequenceId: idx + 1,
+                maxBinStock: qtyPerBin,
+                currentBinStock: 0
+              }));
+
+              valPayloads.push({
+                material: code,
+                materialDescription: trimmed["Deskripsi"] || "",
+                lokasi: trimmed["Lokasi"] || "",
+                packQuantity: packQty,
+                maxBinQty: totalBins * qtyPerBin,
+                minBinQty: packQty, 
+                vendorCode: trimmed["Vendor"],
+                productType: activeTab,
+                bins: generatedBins
+              });
+            }
           }
         }
 
@@ -218,59 +271,78 @@ export function ImportMaterialModal({
     });
   };
 
-  const handleEditField = (
-    index: number,
-    field: "maxQty" | "minQty",
-    value: string
-  ) => {
+  
+  const handleEditField = (index: number, field: "col1" | "col2", value: string) => {
     const updated = [...validationRows];
-    updated[index][field] = parseInt(value, 10);
-    updated[index].message =
-      updated[index].maxQty < updated[index].minQty
-        ? `Max Qty (${updated[index].maxQty}) < Min Qty (${updated[index].minQty})`
-        : "";
+    updated[index][field] = parseInt(value, 10) || 0;
+    updated[index].message = "Klik Simpan untuk validasi ulang"; 
     setValidationRows(updated);
   };
 
   const handleRevalidateRow = (index: number) => {
     const updated = [...validationRows];
     const row = updated[index];
+    const trimmed = row.originalRow;
 
-    const nPackQty = parseInt(row.originalRow["Pack Qty"], 10) || 0;
-    const editedMax = row.maxQty;
-    const editedMin = row.minQty;
+    if (activeTab === "kanban") {
+       
+       const packQty = row.col2;
+       const newMax = roundUpToPack(row.col1, packQty);
+       const minQty = packQty; 
 
-    const roundedMax = roundUpToPack(editedMax, nPackQty);
-    const roundedMin = roundUpToPack(editedMin, nPackQty);
-
-    if (roundedMax >= roundedMin) {
-      const newPayload = {
-        material: row.materialCode,
-        materialDescription: row.originalRow["Deskripsi"] || "",
-        lokasi: row.originalRow["Lokasi"] || "",
-        packQuantity: nPackQty,
-        maxBinQty: roundedMax,
-        minBinQty: roundedMin,
-        vendorCode: row.originalRow["Vendor"],
-      };
-      setValidPayloads((prev) => [...prev, newPayload]);
-
-      updated.splice(index, 1);
-      setValidationRows(updated);
+       if (packQty > 0 && newMax >= minQty) {
+          setValidPayloads(prev => [...prev, {
+            material: row.materialCode,
+            materialDescription: trimmed["Deskripsi"] || "",
+            lokasi: trimmed["Lokasi"] || "",
+            packQuantity: packQty,
+            maxBinQty: newMax,
+            minBinQty: minQty,
+            vendorCode: trimmed["Vendor"],
+            productType: "kanban",
+            bins: []
+          }]);
+          updated.splice(index, 1);
+       } else {
+         row.col1 = newMax;
+         
+         row.message = `Gagal: Max (${newMax}) < Pack (${packQty}) atau Pack Qty <= 0`;
+       }
     } else {
-      updated[index].maxQty = roundedMax;
-      updated[index].minQty = roundedMin;
-      updated[index].message = `Max Qty (${roundedMax}) < Min Qty (${roundedMin}) (Setelah round-up ke Pack Qty ${nPackQty})`;
-      setValidationRows(updated);
-      alert("Masih ada error pada nilai yang dimasukkan (setelah pembulatan)!");
+       
+       const totalBins = row.col1;
+       const qtyPerBin = row.col2;
+       
+       let packQty = 1;
+       if (activeTab === "consumable") packQty = parseInt(trimmed["Pack Qty"], 10) || 0;
+
+       if (totalBins > 0 && qtyPerBin > 0 && packQty > 0 && qtyPerBin >= packQty) {
+          const generatedBins = Array.from({ length: totalBins }, (_, idx) => ({
+            binSequenceId: idx + 1,
+            maxBinStock: qtyPerBin,
+            currentBinStock: 0
+          }));
+          setValidPayloads(prev => [...prev, {
+            material: row.materialCode,
+            materialDescription: trimmed["Deskripsi"] || "",
+            lokasi: trimmed["Lokasi"] || "",
+            packQuantity: packQty,
+            maxBinQty: totalBins * qtyPerBin,
+            minBinQty: packQty,
+            vendorCode: trimmed["Vendor"],
+            productType: activeTab,
+            bins: generatedBins
+          }]);
+          updated.splice(index, 1);
+       } else {
+          row.message = `Gagal: Total Bins > 0, Qty/Bin >= Pack Qty (${packQty})`;
+       }
     }
+    setValidationRows(updated);
   };
 
   const handleFinalImport = async () => {
-    if (validPayloads.length === 0) {
-      alert("Tidak ada data valid untuk diimpor.");
-      return;
-    }
+    if (validPayloads.length === 0) return;
 
     setIsLoading(true);
     setProgress("Mengimpor data...");
@@ -281,14 +353,10 @@ export function ImportMaterialModal({
       const payload = validPayloads[i];
       const percent = Math.round(((i + 1) / validPayloads.length) * 100);
       setUploadPercent(percent);
-      setProgress(
-        `Mengimpor ${i + 1}/${validPayloads.length}: ${payload.material}`
-      );
+      setProgress(`Mengimpor ${i + 1}/${validPayloads.length}: ${payload.material}`);
 
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/materials/`,
-          {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -297,7 +365,10 @@ export function ImportMaterialModal({
             body: JSON.stringify(payload),
           }
         );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+           const json = await res.json();
+           throw new Error(json.error || `HTTP ${res.status}`);
+        }
         successCount++;
       } catch (err) {
         apiErrors.push(`Gagal ${payload.material}: ${String(err)}`);
@@ -307,152 +378,169 @@ export function ImportMaterialModal({
     setIsLoading(false);
     setProgress("");
     setUploadPercent(0);
-    alert(
-      `Impor selesai. Berhasil: ${successCount}, Gagal: ${apiErrors.length}.`
-    );
+    alert(`Impor selesai.\nBerhasil: ${successCount}\nGagal: ${apiErrors.length}`);
+    if (apiErrors.length > 0) console.error(apiErrors);
+    
     onImportSuccess();
     setIsOpen(false);
   };
+
+  
+  const UploadArea = () => (
+    <Label
+      htmlFor={`csvFile-${activeTab}`}
+      className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
+        isDragging
+          ? "border-primary bg-primary/10"
+          : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+      } ${isLoading ? "cursor-not-allowed opacity-50" : ""}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+    >
+      {selectedFile ? (
+        <div className="flex flex-col items-center p-2 text-center">
+          <FileSpreadsheet className="w-8 h-8 text-green-500 mb-2" />
+          <p className="font-medium text-sm">{selectedFile.name}</p>
+          <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-1 h-6 text-red-500 hover:text-red-700"
+            onClick={(e) => { e.preventDefault(); resetState(); }}
+          >
+            <X className="w-3 h-3 mr-1" /> Ganti
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+          <UploadCloud className="w-8 h-8 mb-2 text-gray-400" />
+          <p className="text-sm text-gray-500">Klik atau tarik file CSV di sini</p>
+        </div>
+      )}
+      <Input
+        id={`csvFile-${activeTab}`}
+        type="file"
+        accept=".csv"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={(e) => handleFileSelect(e.target.files?.[0])}
+        disabled={isLoading}
+      />
+    </Label>
+  );
 
   return (
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>Impor Massal Material</DialogTitle>
         <DialogDescription>
-          Upload file CSV dengan data material baru. Header yang perlu diisi:
-          Kode Material, Pack Qty, Max Qty, Min Qty.
+          Pilih tipe produk (Kanban / Consumable / Option), download template yang sesuai, lalu upload.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="gap-4 py-4">
-        <Button
-          type="button"
-          variant="link"
-          className="text-sm text-blue-600 hover:underline p-0 h-auto mb-3"
-          onClick={handleDownloadTemplate}
-        >
-          Download Template CSV
-        </Button>
+      <div className="py-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="kanban">Kanban</TabsTrigger>
+            <TabsTrigger value="consumable">Consumable</TabsTrigger>
+            <TabsTrigger value="option">Option</TabsTrigger>
+          </TabsList>
 
-        <Label
-          htmlFor="csvFile"
-          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer ${
-            isDragging
-              ? "border-primary bg-primary/10"
-              : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
-          } ${isLoading ? "cursor-not-allowed" : ""}`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-        >
-          {selectedFile ? (
-            <div className="flex flex-col items-center p-4 text-center">
-              <FileChartLine className="w-12 h-12 text-green-500" />
-              <p className="font-medium text-sm mt-2">{selectedFile.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(selectedFile.size)}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2 text-red-500 hover:text-red-700"
-                onClick={handleRemoveFile}
-              >
-                <X className="w-4 h-4 mr-1" /> Hapus File
-              </Button>
+          <div className="mt-4 space-y-4">
+            {}
+            <div className="flex items-center justify-between">
+               <div className="text-sm text-muted-foreground">
+                  {activeTab === 'kanban' && "Input: Pack Qty, Max Qty. (Min Qty = Pack Qty)"}
+                  {activeTab === 'consumable' && "Input: Pack Qty, Total Bins, Qty Per Bin."}
+                  {activeTab === 'option' && "Input: Total Bins, Qty Per Bin (Pack Qty = 1)."}
+               </div>
+               <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-dashed"
+                  onClick={handleDownloadTemplate}
+                >
+                  <Download className="w-4 h-4" /> Template {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+               </Button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-              <UploadCloud className="w-10 h-10 mb-3 text-gray-400" />
-              <p className="mb-2 text-sm text-gray-500">
-                <span className="font-semibold">Klik untuk memilih</span> atau
-                tarik file ke sini
-              </p>
-              <p className="text-xs text-gray-500">
-                Hanya file .CSV yang didukung
-              </p>
-            </div>
-          )}
-          <Input
-            id="csvFile"
-            type="file"
-            accept=".csv"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={(e) => handleFileSelect(e.target.files?.[0])}
-          />
-        </Label>
 
-        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+            {}
+            <TabsContent value="kanban" className="mt-0"><UploadArea /></TabsContent>
+            <TabsContent value="consumable" className="mt-0"><UploadArea /></TabsContent>
+            <TabsContent value="option" className="mt-0"><UploadArea /></TabsContent>
 
-        {validationRows.length > 0 && (
-          <div className="bg-red-50 border border-red-300 text-red-800 text-sm rounded-md p-3 mt-4 max-h-72 overflow-y-auto">
-            <p className="font-semibold mb-2">
-              Ditemukan {validationRows.length} baris error:
-            </p>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="bg-red-100 text-left">
-                  <th className="p-1">Baris</th>
-                  <th className="p-1">Kode</th>
-                  <th className="p-1">Max Qty</th>
-                  <th className="p-1">Min Qty</th>
-                  <th className="p-1">Pesan</th>
-                  <th className="p-1 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {validationRows.map((row, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="p-1">{row.rowNum}</td>
-                    <td className="p-1">{row.materialCode}</td>
-                    <td className="p-1">
-                      <input
-                        type="number"
-                        className="w-20 border rounded p-0.5"
-                        value={row.maxQty}
-                        onChange={(e) =>
-                          handleEditField(i, "maxQty", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        type="number"
-                        className="w-20 border rounded p-0.5"
-                        value={row.minQty}
-                        onChange={(e) =>
-                          handleEditField(i, "minQty", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="p-1 text-xs text-red-700">{row.message}</td>
-                    <td className="p-1 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRevalidateRow(i)}
-                      >
-                        Simpan
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {}
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md flex items-center gap-2 border border-red-200">
+                <AlertCircle className="w-4 h-4 flex-shrink-0"/>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {}
+            {validationRows.length > 0 && (
+              <div className="bg-red-50 border border-red-300 text-red-800 text-sm rounded-md p-3 max-h-60 overflow-y-auto">
+                <p className="font-semibold mb-2 text-xs">Perbaiki {validationRows.length} baris error:</p>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-red-100 text-left">
+                      <th className="p-1">Kode</th>
+                      <th className="p-1">
+                        {activeTab === "kanban" ? "Max Qty" : "Total Bins"}
+                      </th>
+                      <th className="p-1">
+                        {activeTab === "kanban" ? "Pack Qty" : "Qty/Bin"}
+                      </th>
+                      <th className="p-1">Pesan</th>
+                      <th className="p-1 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validationRows.map((row, i) => (
+                      <tr key={i} className="border-t border-red-200">
+                        <td className="p-1 font-mono">{row.materialCode}</td>
+                        <td className="p-1">
+                          <input
+                            type="number"
+                            className="w-16 border border-red-300 rounded p-0.5 bg-white"
+                            value={row.col1}
+                            onChange={(e) => handleEditField(i, "col1", e.target.value)}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            type="number"
+                            className="w-16 border border-red-300 rounded p-0.5 bg-white"
+                            value={row.col2}
+                            onChange={(e) => handleEditField(i, "col2", e.target.value)}
+                          />
+                        </td>
+                        <td className="p-1 text-red-700">{row.message}</td>
+                        <td className="p-1 text-center">
+                          <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleRevalidateRow(i)}>
+                            Simpan
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {}
+            {isLoading && (
+              <div className="space-y-1">
+                <Progress value={uploadPercent} className="w-full h-2" />
+                <p className="text-xs text-center text-muted-foreground">{progress}</p>
+              </div>
+            )}
           </div>
-        )}
-
-        {isLoading && (
-          <div className="mt-4">
-            <Progress value={uploadPercent} className="w-full" />
-            <p className="text-sm text-center mt-2 animate-pulse">
-              {progress || "Memproses..."}
-            </p>
-          </div>
-        )}
+        </Tabs>
       </div>
 
       <DialogFooter>
@@ -464,19 +552,19 @@ export function ImportMaterialModal({
           Batal
         </Button>
         {validationRows.length > 0 ? (
-          <Button disabled className="cursor-not-allowed opacity-60">
-            Perbaiki semua error dulu
+          <Button disabled className="opacity-70 cursor-not-allowed">
+            Perbaiki Error Dulu
           </Button>
         ) : (
           <Button
-            onClick={validPayloads.length ? handleFinalImport : handleUpload}
+            onClick={validPayloads.length ? handleFinalImport : handleAnalyze}
             disabled={isLoading || !selectedFile}
           >
             {isLoading
               ? "Memproses..."
               : validPayloads.length
-              ? "Impor Data"
-              : "Validasi CSV"}
+              ? `Impor ${validPayloads.length} Data`
+              : "Analisis & Validasi"}
           </Button>
         )}
       </DialogFooter>
