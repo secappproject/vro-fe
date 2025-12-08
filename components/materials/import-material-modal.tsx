@@ -88,7 +88,7 @@ export function ImportMaterialModal({
   }
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as any);
+    setActiveTab(value as "kanban" | "consumable" | "option");
     resetState();
   };
 
