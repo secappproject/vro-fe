@@ -174,16 +174,7 @@ export function LoginForm() {
               <div className="flex items-center justify-center gap-4 mt-3">
                 <Button variant="outline" asChild>
                   <a
-                    href="https://mvp-fe.vercel.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    MVP
-                  </a>
-                </Button>
-                <Button variant="outline" asChild>
-                  <a
-                    href="https://secpanel.vercel.app"
+                    href="https://72.61.210.181:3001"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
