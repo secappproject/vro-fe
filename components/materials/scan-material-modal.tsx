@@ -537,8 +537,9 @@ export function AutoScanMaterialModal({
                     rowError = `Stok Total kurang dari 0 (${newTotalQuantity})`;
                   } else {
                     runningQuantity = newTotalQuantity;
-                    runningVendorStock += predictedQtyPcs;
-                    runningOpenPO += predictedQtyPcs;
+                    // FIX: Jangan update Vendor Stock saat Scan OUT
+                    // runningVendorStock += predictedQtyPcs;
+                    // runningOpenPO += predictedQtyPcs;
                     simulatedBins.set(
                         predictedBinId,
                         currentBinStock - predictedQtyPcs
