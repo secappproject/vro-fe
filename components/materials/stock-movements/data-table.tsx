@@ -62,7 +62,6 @@ import { StockMovement, useAuthStore } from "@/lib/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// Helper untuk format teks tipe movement
 function formatMovementType(t: string) {
   const lower = t.toLowerCase().trim();
   if (lower === "scan in") return "Scan In Stock";
@@ -104,7 +103,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
     const groups: Record<string, MergedStockMovement> = {};
     
     data.forEach((row) => {
-      // Grouping key: Timestamp + Material Code
       const key = [new Date(row.timestamp).toISOString(), row.materialCode].join("_");
       const isVendorAction = row.movementType.toLowerCase().includes("vendor");
       
@@ -114,7 +112,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       }
 
       if (!groups[key]) {
-        // Inisialisasi Group Baru
         groups[key] = {
           ...row,
           movementTypes: [row.movementType],
@@ -123,60 +120,59 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           relatedBins: currentBinNum ? [currentBinNum] : [],
         };
       } else {
-        // Merge ke Group yang sudah ada
         const group = groups[key];
 
-        // 1. Merge Tipe Movement (unik)
         if (!group.movementTypes.includes(row.movementType)) {
           group.movementTypes.push(row.movementType);
         }
 
-        // 2. Merge Bin (unik & sorted)
         if (currentBinNum && !group.relatedBins.includes(currentBinNum)) {
           group.relatedBins.push(currentBinNum);
           group.relatedBins.sort((a, b) => a - b);
         }
 
-        // 3. Merge Vendor Details (FIX: Menjumlahkan change, bukan replace)
+        // --- PERBAIKAN MATEMATIKA SOH/VENDOR ---
         if (isVendorAction) {
           if (group.vendorDetails) {
             const mergedChange = group.vendorDetails.quantityChange + row.quantityChange;
-            // Tips: Agar matematika Old -> New konsisten:
-            // Ambil New Quantity dari data terbaru (group/row tergantung sort), 
-            // lalu hitung Old Quantity secara manual: Old = New - Change.
-            // Asumsi: group.vendorDetails memegang state dari iterasi sebelumnya.
-            // Kita pakai nilai New Quantity yang paling ekstrem (terbesar/terkecil tergantung arah).
-            // Cara paling aman visual: Old = FinalNew - TotalChange.
             
-            // Kita pakai newQuantity dari row yang sedang diproses (jika asumsi data urut waktu)
-            // Namun untuk aman, gunakan row.newQuantity atau group.newQuantity tergantung mana yang 'akhir'.
-            // Simple Logic: Gunakan salah satu sebagai anchor.
-            
+            // TENTUKAN NEW QUANTITY YANG BENAR (ANCHOR)
+            // Jika + (nambah): Ambil Max New Quantity
+            // Jika - (kurang): Ambil Min New Quantity
+            let finalNew = group.vendorDetails.newQuantity;
+            if (mergedChange > 0) {
+                 finalNew = Math.max(group.vendorDetails.newQuantity, row.newQuantity);
+            } else {
+                 finalNew = Math.min(group.vendorDetails.newQuantity, row.newQuantity);
+            }
+
             group.vendorDetails = {
               ...group.vendorDetails,
               quantityChange: mergedChange,
-              // Hitung ulang Old berdasarkan New yang ada agar tampilan matematikanya benar
-              oldQuantity: group.vendorDetails.newQuantity - mergedChange, 
-              newQuantity: group.vendorDetails.newQuantity
+              newQuantity: finalNew,
+              oldQuantity: finalNew - mergedChange, // Hitung mundur dari Anchor
             };
-            
-            // Note: Jika urutan data terbalik (Oldest first), logika di atas perlu disesuaikan.
-            // Tapi trik (Old = New - Change) selalu membuat baris tabel terlihat benar "X -> Y (+Z)"
           } else {
             group.vendorDetails = row;
           }
-        } 
-        
-        // 4. Merge SOH Details
-        else {
+        } else {
+          // Logic SOH Details
           if (group.sohDetails) {
             const mergedChange = group.sohDetails.quantityChange + row.quantityChange;
+            
+            // TENTUKAN NEW QUANTITY YANG BENAR (ANCHOR)
+            let finalNew = group.sohDetails.newQuantity;
+            if (mergedChange > 0) {
+                 finalNew = Math.max(group.sohDetails.newQuantity, row.newQuantity);
+            } else {
+                 finalNew = Math.min(group.sohDetails.newQuantity, row.newQuantity);
+            }
+
             group.sohDetails = {
               ...group.sohDetails,
               quantityChange: mergedChange,
-              // Fix matematika visual: Old = New - Change
-              oldQuantity: group.sohDetails.newQuantity - mergedChange,
-              newQuantity: group.sohDetails.newQuantity,
+              newQuantity: finalNew,
+              oldQuantity: finalNew - mergedChange, // Hitung mundur dari Anchor
             };
           } else {
             group.sohDetails = row;
@@ -205,7 +201,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  // --- LOGIC DOWNLOAD ---
   const handleDownload = async () => {
     const rows = table.getFilteredRowModel().rows;
     if (rows.length === 0) {
@@ -220,7 +215,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       timeStyle: "long",
     });
 
-    // Header Laporan
     const headers = [
       "Waktu",
       "Tipe Aksi",
@@ -236,7 +230,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       "Catatan (Vendor)",
     ];
 
-    // Mapping Data ke Array untuk CSV/PDF
     const dataToExport = rows.map((row) => {
       const original = row.original;
       
@@ -246,7 +239,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       
       const movementTypes = original.movementTypes.map(formatMovementType).join(", ");
       
-      // SOH Logic
       const sohOld = original.sohDetails ? original.sohDetails.oldQuantity : "-";
       const sohNew = original.sohDetails ? original.sohDetails.newQuantity : "-";
       const sohChange = original.sohDetails ? 
@@ -254,7 +246,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           : "-";
       const sohNotes = original.sohDetails?.notes?.Valid ? original.sohDetails.notes.String : "-";
 
-      // Vendor Logic
       const vendOld = original.vendorDetails ? original.vendorDetails.oldQuantity : "-";
       const vendNew = original.vendorDetails ? original.vendorDetails.newQuantity : "-";
       const vendChange = original.vendorDetails ? 
@@ -262,7 +253,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           : "-";
       const vendNotes = original.vendorDetails?.notes?.Valid ? original.vendorDetails.notes.String : "-";
 
-      // Bins
       const bins = original.relatedBins.length > 0 ? `Bin ${original.relatedBins.join(", ")}` : "-";
 
       return [
@@ -281,7 +271,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       ];
     });
 
-    // 1. Export CSV
     if (exportFormat === "csv") {
       const escapeCsvCell = (cell: unknown) => {
         const str = String(cell ?? "");
@@ -305,7 +294,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       link.click();
       document.body.removeChild(link);
     } 
-    // 2. Export PDF
     else if (exportFormat === "pdf") {
       const doc = new jsPDF(pdfOrientation, "pt", "a4");
 
@@ -315,7 +303,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       doc.setTextColor(100);
       doc.text(`Diekstrak pada: ${reportTimestamp}`, 40, 55);
       
-      // Info Material (Ambil dari row pertama kalau ada)
       if(groupedData.length > 0) {
         doc.text(`Kode Material: ${groupedData[0].materialCode}`, 40, 70);
       }
@@ -339,7 +326,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
       doc.save(`stock_history_extract_${filenameTimestamp}.pdf`);
     }
 
-    // 3. Log Download ke Backend
     if (username) {
       try {
         await fetch(`${API_URL}/api/logs/download`, {
@@ -365,7 +351,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
         />
 
         <div className="flex items-center gap-2">
-            {/* Tombol Extract / Download */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="hidden h-9 lg:flex">
@@ -430,7 +415,6 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
               </AlertDialogContent>
             </AlertDialog>
 
-            {/* Tombol View Toggle Column */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="hidden h-9 lg:flex">
