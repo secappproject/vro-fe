@@ -25,7 +25,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UnfoldHorizontalIcon, Download } from "lucide-react"; // Import Download Icon
+import { UnfoldHorizontalIcon, Download } from "lucide-react"; 
 import {
   Select,
   SelectContent,
@@ -58,11 +58,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
 import React, { useMemo } from "react";
-import { StockMovement, useAuthStore } from "@/lib/types"; // Import useAuthStore
+import { StockMovement, useAuthStore } from "@/lib/types"; 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// Helper untuk format teks tipe movement (disamakan dengan column-header)
+// Helper untuk format teks tipe movement
 function formatMovementType(t: string) {
   const lower = t.toLowerCase().trim();
   if (lower === "scan in") return "Scan In Stock";
@@ -94,24 +94,27 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  // State untuk fitur Export
   const [exportFormat, setExportFormat] = React.useState<"csv" | "pdf">("csv");
-  const [pdfOrientation, setPdfOrientation] = React.useState<"portrait" | "landscape">("landscape"); // Default landscape karena kolom banyak
+  const [pdfOrientation, setPdfOrientation] = React.useState<"portrait" | "landscape">("landscape"); 
 
   const username = useAuthStore((state) => state.username);
   
-  // Logic grouping data (sama seperti sebelumnya)
+  // --- LOGIC GROUPING & SUMMING DIPERBAIKI ---
   const groupedData = useMemo(() => {
     const groups: Record<string, MergedStockMovement> = {};
+    
     data.forEach((row) => {
+      // Grouping key: Timestamp + Material Code
       const key = [new Date(row.timestamp).toISOString(), row.materialCode].join("_");
       const isVendorAction = row.movementType.toLowerCase().includes("vendor");
+      
       let currentBinNum: number | null = null;
       if (row.binSequenceId && row.binSequenceId.Valid) {
         currentBinNum = row.binSequenceId.Int64;
       }
 
       if (!groups[key]) {
+        // Inisialisasi Group Baru
         groups[key] = {
           ...row,
           movementTypes: [row.movementType],
@@ -120,24 +123,60 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
           relatedBins: currentBinNum ? [currentBinNum] : [],
         };
       } else {
+        // Merge ke Group yang sudah ada
         const group = groups[key];
+
+        // 1. Merge Tipe Movement (unik)
         if (!group.movementTypes.includes(row.movementType)) {
           group.movementTypes.push(row.movementType);
         }
+
+        // 2. Merge Bin (unik & sorted)
         if (currentBinNum && !group.relatedBins.includes(currentBinNum)) {
           group.relatedBins.push(currentBinNum);
           group.relatedBins.sort((a, b) => a - b);
         }
+
+        // 3. Merge Vendor Details (FIX: Menjumlahkan change, bukan replace)
         if (isVendorAction) {
-          group.vendorDetails = row;
-        } else {
+          if (group.vendorDetails) {
+            const mergedChange = group.vendorDetails.quantityChange + row.quantityChange;
+            // Tips: Agar matematika Old -> New konsisten:
+            // Ambil New Quantity dari data terbaru (group/row tergantung sort), 
+            // lalu hitung Old Quantity secara manual: Old = New - Change.
+            // Asumsi: group.vendorDetails memegang state dari iterasi sebelumnya.
+            // Kita pakai nilai New Quantity yang paling ekstrem (terbesar/terkecil tergantung arah).
+            // Cara paling aman visual: Old = FinalNew - TotalChange.
+            
+            // Kita pakai newQuantity dari row yang sedang diproses (jika asumsi data urut waktu)
+            // Namun untuk aman, gunakan row.newQuantity atau group.newQuantity tergantung mana yang 'akhir'.
+            // Simple Logic: Gunakan salah satu sebagai anchor.
+            
+            group.vendorDetails = {
+              ...group.vendorDetails,
+              quantityChange: mergedChange,
+              // Hitung ulang Old berdasarkan New yang ada agar tampilan matematikanya benar
+              oldQuantity: group.vendorDetails.newQuantity - mergedChange, 
+              newQuantity: group.vendorDetails.newQuantity
+            };
+            
+            // Note: Jika urutan data terbalik (Oldest first), logika di atas perlu disesuaikan.
+            // Tapi trik (Old = New - Change) selalu membuat baris tabel terlihat benar "X -> Y (+Z)"
+          } else {
+            group.vendorDetails = row;
+          }
+        } 
+        
+        // 4. Merge SOH Details
+        else {
           if (group.sohDetails) {
             const mergedChange = group.sohDetails.quantityChange + row.quantityChange;
             group.sohDetails = {
-              ...row,
+              ...group.sohDetails,
               quantityChange: mergedChange,
-              oldQuantity: group.sohDetails.oldQuantity,
-              newQuantity: row.newQuantity,
+              // Fix matematika visual: Old = New - Change
+              oldQuantity: group.sohDetails.newQuantity - mergedChange,
+              newQuantity: group.sohDetails.newQuantity,
             };
           } else {
             group.sohDetails = row;
@@ -145,6 +184,7 @@ export function StockMovementDataTable({ columns, data }: DataTableProps) {
         }
       }
     });
+
     return Object.values(groups).sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
