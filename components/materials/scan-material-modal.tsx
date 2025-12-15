@@ -704,7 +704,7 @@ export function AutoScanMaterialModal({
     currentId: number,
     currentIndex: number
   ) => {
-    if (e.key === "Tab" && !e.shiftKey) {
+    if ((e.key === "Tab" && !e.shiftKey) || (e.key === "Enter" && !e.shiftKey)) {
       if ((e.target as HTMLElement).id.startsWith("qty-")) {
         return;
       }
