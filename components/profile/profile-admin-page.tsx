@@ -1,4 +1,5 @@
 "use client";
+
 import { User, useAuthStore } from "@/lib/types";
 import { UserDataTable } from "@/components/profile/user-data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -65,11 +66,13 @@ export function AdminProfileView() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-10">
-        <h1 className="text-3xl mb-4">Manajemen Pengguna</h1>
-        <p className="text-muted-foreground mb-6 font-light">
-          Mengatur semua akun pengguna dalam sistem.
-        </p>
+      <div className="flex flex-col h-full gap-4">
+        <div className="mb-4">
+          <h1 className="text-3xl mb-4">Manajemen Pengguna</h1>
+          <p className="text-muted-foreground mb-6 font-light">
+            Mengatur semua akun pengguna dalam sistem.
+          </p>
+        </div>
         <Card>
           <CardHeader>
             <Skeleton className="h-8 w-1/4" />
@@ -85,9 +88,11 @@ export function AdminProfileView() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    // PERUBAHAN DISINI: Gunakan 'flex flex-col h-full gap-4' bukan container
+    <div className="flex flex-col h-full gap-4">
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <div className="md:flex md:justify-between md:items-center mb-4">
+        {/* Header Section: flex-none agar tidak ikut scroll */}
+        <div className="md:flex md:justify-between md:items-center flex-none">
           <div className="mb-4 md:mb-0">
             <h1 className="text-3xl">Manajemen Pengguna</h1>
             <p className="text-muted-foreground font-light mt-1">
@@ -105,7 +110,10 @@ export function AdminProfileView() {
           )}
         </div>
 
-        <UserDataTable columns={columns} data={data} />
+        {/* Table Container: flex-1 dan overflow-hidden agar scroll ada di dalam tabel */}
+        <div className="flex-1 overflow-hidden">
+          <UserDataTable columns={columns} data={data} />
+        </div>
 
         <AddUserModal
           setIsOpen={setIsAddModalOpen}

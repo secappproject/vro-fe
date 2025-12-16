@@ -84,7 +84,7 @@ export function VendorPage() {
 
   if (!canViewPage) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="flex flex-col h-full justify-center items-center">
         <h1 className="text-3xl text-red-600">Akses Ditolak</h1>
         <p className="text-muted-foreground mt-2">
           Anda tidak memiliki izin untuk mengakses halaman ini.
@@ -98,9 +98,11 @@ export function VendorPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    // PERUBAHAN DISINI: Gunakan 'flex flex-col h-full gap-4'
+    <div className="flex flex-col h-full gap-4">
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <div className="md:flex md:justify-between md:items-center mb-4">
+        {/* Header Section: Flex-none */}
+        <div className="md:flex md:justify-between md:items-center flex-none">
           <div className="mb-4 md:mb-0">
             <h1 className="text-3xl">Manajemen Perusahaan (Vendor)</h1>
             <p className="text-muted-foreground font-light mt-1">
@@ -118,7 +120,10 @@ export function VendorPage() {
           )}
         </div>
 
-        <VendorDataTable columns={columns} data={data} />
+        {/* Table Wrapper: Flex-1 Overflow-hidden */}
+        <div className="flex-1 overflow-hidden">
+          <VendorDataTable columns={columns} data={data} />
+        </div>
 
         <AddVendorModal
           setIsOpen={setIsAddModalOpen}

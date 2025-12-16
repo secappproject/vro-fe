@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={cn(lexend.variable, jetbrains.variable)} 
       suppressHydrationWarning
     >
-      <body>
+      <body className="h-screen overflow-hidden">
         <AuthProvider>
           {isLoginPage ? (
             <main className="min-h-screen bg-white dark:bg-gray-900">
@@ -41,15 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           ) : (
             <div
               className={cn(
-                "flex flex-col min-w-0 md:grid md:min-h-screen min-w-0 md:transition-[grid-template-columns] duration-300 ease-in-out",
+                "flex flex-col h-screen overflow-hidden min-w-0 md:grid md:transition-[grid-template-columns] duration-300 ease-in-out",
                 isSidebarCollapsed ? "md:grid-cols-[72px_1fr]" : "md:grid-cols-[288px_1fr]"
               )}
             >
               <Sidebar isCollapsed={isSidebarCollapsed} />
-              <div className="flex flex-col bg-white dark:bg-gray-900">
+              <div className="flex flex-col bg-white dark:bg-gray-900 h-full overflow-hidden">
                 <Header toggleSidebar={toggleSidebar} isSidebarCollapsed={isSidebarCollapsed} />
                 
-                <main className="flex flex-1 flex-col p-6">
+                <main className="flex flex-1 flex-col p-6 overflow-hidden">
                   {children}
                 </main>
               </div>

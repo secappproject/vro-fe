@@ -20,7 +20,6 @@ export function MaterialPage() {
   const [data, setData] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -93,12 +92,9 @@ export function MaterialPage() {
     handleMaterialUpdated,
     handleMaterialDeleted
   );
-
   
   const canScan = role === "Superuser" || role === "Admin";
-  
   const canImportMaster = role === "Superuser"; 
-  
   const canImportVendorStock = role === "Superuser"  || role === "Vendor";
   const canAdd = role === "Superuser";
 
@@ -110,8 +106,8 @@ export function MaterialPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="md:flex md:justify-between md:items-center mb-4">
+    <div className="flex flex-col h-full gap-4">
+      <div className="md:flex md:justify-between md:items-center flex-none">
         <div className="mb-4 md:mb-0">
           <h1 className="text-3xl">Replenishment Stock Monitoring</h1>
           <p className="text-muted-foreground font-light mt-1">
@@ -120,7 +116,6 @@ export function MaterialPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-2">
-          {}
           {canImportVendorStock && (
             <Button
               variant="outline"
@@ -131,7 +126,6 @@ export function MaterialPage() {
             </Button>
           )}
 
-          {}
           {canImportMaster && (
             <Button
               variant="outline"
@@ -143,7 +137,6 @@ export function MaterialPage() {
             </Button>
           )}
 
-          {}
           {canScan && (
             <Button
               variant="outline"
@@ -155,7 +148,6 @@ export function MaterialPage() {
             </Button>
           )}
 
-          {}
           {canAdd && (
             <Button
               className="flex w-full md:w-auto"
@@ -168,9 +160,10 @@ export function MaterialPage() {
         </div>
       </div>
 
-      <MaterialDataTable columns={columns} data={data} />
+      <div className="flex-1 overflow-hidden">
+        <MaterialDataTable columns={columns} data={data} />
+      </div>
 
-      {}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <AddMaterialModal
           setIsOpen={setIsAddModalOpen}
@@ -178,7 +171,6 @@ export function MaterialPage() {
         />
       </Dialog>
 
-      {}
       <Dialog open={isScanModalOpen} onOpenChange={setIsScanModalOpen}>
         <AutoScanMaterialModal
           setIsOpen={setIsScanModalOpen}
@@ -186,7 +178,6 @@ export function MaterialPage() {
         />
       </Dialog>
 
-      {}
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
         <ImportMaterialModal
           setIsOpen={setIsImportModalOpen}
@@ -194,7 +185,6 @@ export function MaterialPage() {
         />
       </Dialog>
 
-      {}
       <Dialog open={isVendorImportOpen} onOpenChange={setIsVendorImportOpen}>
         <ImportVendorStockModal
           setIsOpen={setIsVendorImportOpen}

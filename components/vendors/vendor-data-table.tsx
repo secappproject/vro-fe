@@ -15,8 +15,8 @@ import {
   useReactTable,
   FilterFn,
 } from "@tanstack/react-table";
+// HAPUS import { Table }
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -118,8 +118,8 @@ export function VendorDataTable<TData extends Vendor, TValue>({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex items-center justify-between gap-4 flex-none">
         <div className="flex flex-col gap-2 w-full max-w-lg">
           <div className="flex items-center gap-2">
             <Input
@@ -165,13 +165,16 @@ export function VendorDataTable<TData extends Vendor, TValue>({
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border flex-1 overflow-auto relative bg-white dark:bg-gray-950">
+        <table className="w-full caption-bottom text-sm text-left">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead 
+                    key={header.id}
+                    className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-950 shadow-sm h-12 px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -189,9 +192,10 @@ export function VendorDataTable<TData extends Vendor, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell className="font-light" key={cell.id}>
+                    <TableCell className="p-4 align-middle font-light [&:has([role=checkbox])]:pr-0" key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -211,11 +215,11 @@ export function VendorDataTable<TData extends Vendor, TValue>({
               </TableRow>
             )}
           </TableBody>
-        </Table>
+        </table>
       </div>
 
 
-      <div className="flex items-center justify-between py-4">
+      <div className="flex items-center justify-between py-4 flex-none border-t mt-0">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-light">Baris per halaman:</p>
           <Select

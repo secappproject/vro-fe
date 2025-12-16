@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Material, useAuthStore, StockMovement } from "@/lib/types"; // Pastikan StockMovement diimport
+import { Material, useAuthStore, StockMovement } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { UnfoldHorizontalIcon, X, Download, History } from "lucide-react";
 import {
@@ -105,7 +105,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const role = useAuthStore((state) => state.role);
   const companyName = useAuthStore((state) => state.companyName);
 
-  // Perbaikan 1: Gunakan useMemo agar authHeaders stabil dan tidak memicu warning useEffect
   const authHeaders = useMemo(() => {
     return {
       "X-User-Role": role || "",
@@ -164,7 +163,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
     table.setGlobalFilter(combinedFilter);
   }, [filterChips, inputValue, table]);
 
-  // Perbaikan 2: Tambahkan authHeaders ke dependency array
   const fetchLastDownload = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/logs/last-download`, {
@@ -353,7 +351,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
       if (!response.ok) throw new Error("Gagal mengambil data history");
       
-      // Perbaikan 3: Gunakan tipe StockMovement[], bukan any[]
       const movements: StockMovement[] = await response.json();
 
       if (movements.length === 0) {
@@ -449,8 +446,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex items-center justify-between gap-4 flex-none">
         <div className="flex flex-col gap-2 w-full max-w-lg">
           <div className="flex items-center gap-2">
             <Input
@@ -541,7 +538,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
                         <Label>Format</Label>
                         <RadioGroup
                           value={exportFormat}
-                          /* Perbaikan 4: Hapus 'any', gunakan casting */
                           onValueChange={(v) => setExportFormat(v as "csv" | "pdf")}
                         >
                           <div className="flex items-center space-x-2">
@@ -669,24 +665,16 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border flex-1 overflow-auto relative bg-white dark:bg-gray-950">
+        <table className="w-full caption-bottom text-sm text-left">
           <TableHeader>
-            <TableRow>
-              <TableHead
-                colSpan={columns.length}
-                className="h-10 align-middle"
-              >
-                <span className="text-sm font-light text-muted-foreground">
-                  Total {table.getFilteredRowModel().rows.length} data
-                </span>
-              </TableHead>
-            </TableRow>
-
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead 
+                    key={header.id} 
+                    className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-950 shadow-sm h-12 px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -704,9 +692,10 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell className="font-light" key={cell.id}>
+                    <TableCell className="p-4 align-middle font-light [&:has([role=checkbox])]:pr-0" key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -726,29 +715,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
               </TableRow>
             )}
           </TableBody>
-        </Table>
+        </table>
       </div>
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm font-light">Baris per halaman:</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 15, 20, 25, 30].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
         <div className="flex items-center space-x-4">
           <div className="flex w-[100px] items-center justify-center text-sm font-light">
@@ -775,6 +743,5 @@ export function MaterialDataTable<TData extends Material, TValue>({
           </div>
         </div>
       </div>
-    </div>
   );
 }
