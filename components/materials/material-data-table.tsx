@@ -757,22 +757,28 @@ export function MaterialDataTable<TData extends Material, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell className="p-4 align-middle font-light [&:has([role=checkbox])]:pr-0" key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                
+                const isBlocked = (row.original as any).productType === "block";
+                
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={`border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted 
+                      ${isBlocked ? "bg-gray-100 opacity-40 grayscale decoration-gray-400" : ""}`} 
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell className="p-4 align-middle font-light [&:has([role=checkbox])]:pr-0" key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

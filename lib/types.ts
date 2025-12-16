@@ -60,7 +60,8 @@ export interface Material {
   pic?: string;
   vendorStock?: number;
   openPO?: number;
-  productType: 'kanban' | 'consumable' | 'option';
+  productType: 'kanban' | 'consumable' | 'option' | 'block'; 
+  previousProductType?: string;
   bins?: MaterialBin[]; 
 }
 
@@ -97,6 +98,7 @@ export interface StockMovement {
   binSequenceId: GoSqlNullInt;
   timestamp: string;
 }
+
 
 
 export const useAuthStore = create<UserState>()(

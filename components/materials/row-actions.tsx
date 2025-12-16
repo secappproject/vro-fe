@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, History } from "lucide-react"; 
+import { MoreHorizontal, History, Ban, Undo2 } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,17 +31,42 @@ export function MaterialDataTableRowActions({
 }: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const authRole = useAuthStore((state) => state.role);
+  const { role, companyName } = useAuthStore(); 
   const router = useRouter(); 
 
-  if (authRole === "Viewer") {
+  if (role === "Viewer") {
     return null;
   }
 
-  const isSuperuser = authRole === "Superuser";
+  const isSuperuser = role === "Superuser";
+  const isBlocked = material.productType === "block";
 
   const handleViewHistory = () => {
     router.push(`/materials/${material.id}`);
+  };
+
+  
+  const handleToggleBlock = async () => {
+    const action = isBlocked ? "unblock" : "block";
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/${material.id}/${action}`, {
+            method: "PATCH",
+            headers: {
+                "X-User-Role": role || "",
+                "X-User-Company": companyName || "",
+            }
+        });
+
+        if (res.ok) {
+            
+            
+            window.location.reload(); 
+        } else {
+            alert("Gagal mengubah status material");
+        }
+    } catch (error) {
+        console.error(error);
+    }
   };
 
   return (
@@ -62,7 +87,24 @@ export function MaterialDataTableRowActions({
             Lihat Histori Stok
           </DropdownMenuItem>
 
-          <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
+          {}
+          <DropdownMenuItem onSelect={handleToggleBlock}>
+            {isBlocked ? (
+                <>
+                    <Undo2 className="mr-2 h-4 w-4 text-green-600" />
+                    Unblock Material
+                </>
+            ) : (
+                <>
+                    <Ban className="mr-2 h-4 w-4 text-orange-600" />
+                    Block Material
+                </>
+            )}
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)} disabled={isBlocked}>
             Edit Material
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -75,6 +117,7 @@ export function MaterialDataTableRowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <EditMaterialModal
           material={material}
