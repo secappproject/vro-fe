@@ -5,6 +5,7 @@ import { User } from "@/lib/types";
 import { DataTableColumnHeader } from "../reusable-datatable/column-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTableRowActions } from "./row-actions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type UserUpdateHandler = (updatedUser: User) => void;
 type UserDeleteHandler = (userId: number) => void;
@@ -26,15 +27,39 @@ const nullStringFilterFn: FilterFn<User> = (row, id, filterValue) => {
   if (selectedValues.length === 0) return true;
 
   const rowValue = row.getValue(id) as NullString | null;
-
   const displayValue = getDisplayValueFromNullString(rowValue);
 
   return selectedValues.includes(displayValue);
 };
+
 export const getColumns = (
   onUserUpdated: UserUpdateHandler,
   onUserDeleted: UserDeleteHandler
 ): ColumnDef<User>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-[2px]"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-[2px]"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     id: "no",
     header: "No.",

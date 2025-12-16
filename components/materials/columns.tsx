@@ -5,6 +5,7 @@ import { Material } from "@/lib/types";
 import { DataTableColumnHeader } from "../reusable-datatable/column-header";
 import { MaterialDataTableRowActions } from "./row-actions";
 import { BinPreview } from "./bin-preview";
+import { Checkbox } from "../ui/checkbox";
 
 type MaterialUpdateHandler = (updatedMaterial: Material) => void;
 type MaterialDeleteHandler = (materialId: number) => void;
@@ -35,6 +36,30 @@ export const getMaterialColumns = (
   onMaterialUpdated: MaterialUpdateHandler,
   onMaterialDeleted: MaterialDeleteHandler
 ): ColumnDef<Material>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-[2px]"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-[2px]"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     id: "no",
     header: "No.",

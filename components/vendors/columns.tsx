@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Vendor } from "@/lib/types";
 import { DataTableColumnHeader } from "../reusable-datatable/column-header";
 import { VendorDataTableRowActions } from "./row-actions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type VendorUpdateHandler = (updatedVendor: Vendor) => void;
 type VendorDeleteHandler = (vendorId: number) => void;
@@ -12,6 +13,30 @@ export const getVendorColumns = (
   onVendorUpdated: VendorUpdateHandler,
   onVendorDeleted: VendorDeleteHandler
 ): ColumnDef<Vendor>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-[2px]"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-[2px]"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     id: "no",
     header: "No.",

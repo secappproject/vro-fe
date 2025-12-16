@@ -15,7 +15,6 @@ import {
   useReactTable,
   FilterFn, 
 } from "@tanstack/react-table";
-// HAPUS import { Table }
 import {
   TableBody,
   TableCell,
@@ -24,11 +23,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { User } from "@/lib/types";
+import { User, useAuthStore } from "@/lib/types";
 import { Input } from "@/components/ui/input";
-import { X } from "lucide-react"; 
+import { Trash2, X } from "lucide-react"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type NullString = {
   String: string;
@@ -67,6 +76,11 @@ export function UserDataTable<TData extends User, TValue>({
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [inputValue, setInputValue] = React.useState("");
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
+  
+  // STATE BARU: Row Selection
+  const [rowSelection, setRowSelection] = React.useState({});
+
+  const role = useAuthStore((state) => state.role);
 
   const multiWordFilterFn: FilterFn<TData> = (row, _columnId, filterValue) => {
     const filterWords = String(filterValue).toLowerCase().split(" ").filter(Boolean);
@@ -96,7 +110,11 @@ export function UserDataTable<TData extends User, TValue>({
       sorting,
       columnFilters,
       globalFilter, 
+      rowSelection, // Add state
     },
+    enableRowSelection: true,
+    getRowId: (row) => (row as any).id?.toString(), // Ensure ID mapping
+    onRowSelectionChange: setRowSelection,
     filterFns: {
       multiWord: multiWordFilterFn,
     },
@@ -144,6 +162,35 @@ export function UserDataTable<TData extends User, TValue>({
     table.setGlobalFilter(undefined);
   };
 
+  // --- LOGIC BULK DELETE ---
+  const handleBulkDelete = async () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const idsToDelete = selectedRows.map((row) => (row.original as any).id);
+
+    if (idsToDelete.length === 0) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      
+      // Loop delete (fallback mechanism)
+      for (const id of idsToDelete) {
+        await fetch(`${apiUrl}/api/users/${id}`, {
+          method: "DELETE",
+          headers: {
+             "X-User-Role": role || "",
+          }
+        });
+      }
+
+      setRowSelection({});
+      window.location.reload(); // Refresh page to see changes
+      
+    } catch (error) {
+      console.error("Gagal menghapus data", error);
+      alert("Terjadi kesalahan saat menghapus data.");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full gap-4">
       <div className="flex items-center justify-between gap-4 flex-none">
@@ -179,6 +226,34 @@ export function UserDataTable<TData extends User, TValue>({
             </div>
           )}
         </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+            {Object.keys(rowSelection).length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="h-9 gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Hapus ({Object.keys(rowSelection).length})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Hapus Pengguna?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tindakan ini akan menghapus {Object.keys(rowSelection).length} pengguna yang dipilih secara permanen.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
+                    Ya, Hapus
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <div className="rounded-md border flex-1 overflow-auto relative bg-white dark:bg-gray-950">
@@ -189,7 +264,7 @@ export function UserDataTable<TData extends User, TValue>({
                 {headerGroup.headers.map((header) => (
                   <TableHead 
                     key={header.id}
-                    className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-950 shadow-sm h-12 px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+                    className="sticky top-0 z-50 bg-white dark:bg-gray-950 shadow-sm h-12 px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
                   >
                     {header.isPlaceholder
                       ? null
@@ -236,24 +311,10 @@ export function UserDataTable<TData extends User, TValue>({
 
       <div className="flex items-center justify-between py-4 flex-none border-t mt-0">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-light">Baris per halaman:</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 15, 20, 25, 30].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+           <div className="flex-1 text-sm text-muted-foreground">
+            {table.getFilteredSelectedRowModel().rows.length} dari{" "}
+            {table.getFilteredRowModel().rows.length} baris dipilih.
+          </div>
         </div>
 
         <div className="flex items-center space-x-4">
