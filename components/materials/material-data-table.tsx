@@ -569,7 +569,12 @@ export function MaterialDataTable<TData extends Material, TValue>({
           <div className="flex flex-row items-center gap-2">
             {lastDownloadInfo && (
               <span className="text-xs text-muted-foreground font-mono whitespace-nowrap hidden lg:block">
-                Last: {lastDownloadInfo.username}
+                Last: {lastDownloadInfo.username} @{" "} 
+                {}
+                {new Date(lastDownloadInfo.timestamp).toLocaleString("id-ID", {
+                  timeStyle: "short",
+                  dateStyle: "short",
+                })}
               </span>
             )}
             <AlertDialog>
