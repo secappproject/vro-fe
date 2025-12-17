@@ -32,7 +32,6 @@ import {
   Download, 
   History, 
   Trash2 
-  // HAPUS: Upload icon
 } from "lucide-react";
 import {
   Select,
@@ -492,9 +491,18 @@ export function MaterialDataTable<TData extends Material, TValue>({
 
   return (
     <div className="flex flex-col h-full gap-4">
+      {/* Header bar pencarian dan tombol */}
       <div className="flex items-center justify-between gap-4 flex-none">
         <div className="flex flex-col gap-2 w-full max-w-lg">
           <div className="flex items-center gap-2">
+
+
+            {}
+             <div className="flex items-center justify-center h-9 px-3 rounded-md border bg-muted/30 text-xs font-medium text-muted-foreground whitespace-nowrap shadow-sm">
+                Total: <span className="text-foreground ml-1 font-semibold">{data.length}</span>
+            </div>
+            {}
+
             <Input
               type="text"
               placeholder={
@@ -507,6 +515,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
               onKeyDown={handleKeyDown}
               className="flex-grow"
             />
+            
+
             {isFiltered && (
               <Button
                 variant="ghost"
@@ -575,8 +585,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 })}
               </span>
             )}
-
-            {/* HAPUS BAGIAN IMPORT DARI SINI KARENA SUDAH ADA DI PAGE HEADER */}
             
             <AlertDialog>
               <AlertDialogTrigger asChild>
