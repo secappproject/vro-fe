@@ -489,20 +489,25 @@ export function MaterialDataTable<TData extends Material, TValue>({
     }
   };
 
+  // --- HITUNG DATA DINAMIS DI SINI ---
+  const filteredRowsLength = table.getFilteredRowModel().rows.length;
+  const totalRowsLength = data.length;
+  // ------------------------------------
+
   return (
     <div className="flex flex-col h-full gap-4">
-      {/* Header bar pencarian dan tombol */}
       <div className="flex items-center justify-between gap-4 flex-none">
         <div className="flex flex-col gap-2 w-full max-w-lg">
           <div className="flex items-center gap-2">
 
-
-            {}
              <div className="flex items-center justify-center h-9 px-3 rounded-md border bg-muted/30 text-xs font-medium text-muted-foreground whitespace-nowrap shadow-sm">
-                Total: <span className="text-foreground ml-1 font-semibold">{data.length}</span>
+                Total: <span className="text-foreground ml-1 font-bold">{filteredRowsLength}</span>
+                {filteredRowsLength !== totalRowsLength && (
+                    <span className="ml-1 text-[10px] text-muted-foreground opacity-70">
+                         / {totalRowsLength}
+                    </span>
+                )}
             </div>
-            {}
-
             <Input
               type="text"
               placeholder={
