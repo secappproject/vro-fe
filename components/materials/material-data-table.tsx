@@ -16,7 +16,6 @@ import {
   useReactTable,
   FilterFn,
 } from "@tanstack/react-table";
-// HAPUS import { Table }
 import {
   TableBody,
   TableCell,
@@ -27,7 +26,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Material, useAuthStore, StockMovement } from "@/lib/types";
 import { Input } from "@/components/ui/input";
-import { UnfoldHorizontalIcon, X, Download, History, Trash2 } from "lucide-react";
+import { 
+  UnfoldHorizontalIcon, 
+  X, 
+  Download, 
+  History, 
+  Trash2 
+  // HAPUS: Upload icon
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -96,7 +102,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
   const [inputValue, setInputValue] = React.useState("");
   const [filterChips, setFilterChips] = React.useState<string[]>([]);
   
-  // STATE BARU: Untuk menyimpan baris yang dipilih
   const [rowSelection, setRowSelection] = React.useState({});
 
   const [exportFormat, setExportFormat] = React.useState<"csv" | "pdf">("csv");
@@ -143,15 +148,14 @@ export function MaterialDataTable<TData extends Material, TValue>({
       columnFilters,
       globalFilter,
       columnVisibility,
-      rowSelection, // Masukkan state selection
+      rowSelection, 
     },
     filterFns: {
       multiWord: multiWordFilterFn,
     },
-    enableRowSelection: true, // Aktifkan fitur selection
-    // Penting: Gunakan ID unik dari data (misal: row.id) agar selection akurat
+    enableRowSelection: true, 
     getRowId: (row) => (row as any).id?.toString(), 
-    onRowSelectionChange: setRowSelection, // Handler perubahan selection
+    onRowSelectionChange: setRowSelection, 
     globalFilterFn: multiWordFilterFn,
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
@@ -218,16 +222,13 @@ export function MaterialDataTable<TData extends Material, TValue>({
     table.setGlobalFilter(undefined);
   };
 
-  // --- LOGIC BULK DELETE ---
   const handleBulkDelete = async () => {
-    // Ambil ID dari row yang dipilih
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     const idsToDelete = selectedRows.map((row) => (row.original as any).id);
 
     if (idsToDelete.length === 0) return;
 
     try {
-      // Loop delete
       for (const id of idsToDelete) {
         await fetch(`${API_URL}/api/materials/${id}`, {
           method: "DELETE",
@@ -235,14 +236,12 @@ export function MaterialDataTable<TData extends Material, TValue>({
         });
       }
 
-      // Reset selection
       setRowSelection({});
       
-      // Refresh data di parent component
       if (onDataChanged) {
         onDataChanged();
       } else {
-        window.location.reload(); // Fallback reload
+        window.location.reload(); 
       }
       
       alert(`Berhasil menghapus ${idsToDelete.length} data.`);
@@ -252,7 +251,6 @@ export function MaterialDataTable<TData extends Material, TValue>({
       alert("Terjadi kesalahan saat menghapus data.");
     }
   };
-  // -------------------------
 
   const handleDownload = async () => {
     const rows = table.getFilteredRowModel().rows;
@@ -540,7 +538,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
         </div>
 
         <div className="flex items-center gap-2">
-            {/* TOMBOL DELETE SELECTED MUNCUL DISINI */}
+            {/* TOMBOL DELETE SELECTED */}
             {Object.keys(rowSelection).length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -577,6 +575,9 @@ export function MaterialDataTable<TData extends Material, TValue>({
                 })}
               </span>
             )}
+
+            {/* HAPUS BAGIAN IMPORT DARI SINI KARENA SUDAH ADA DI PAGE HEADER */}
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button

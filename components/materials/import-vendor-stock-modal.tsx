@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/lib/types";
 import Papa from "papaparse";
 import { FileSpreadsheet, UploadCloud, X, Download } from "lucide-react";
@@ -25,6 +26,8 @@ interface VendorStockPayload {
   materialCode: string;
   vendorStock: number;
   openPO: number;
+  
+  updateType?: "stock" | "open_po" | "both"; 
 }
 
 const formatFileSize = (bytes: number) => {
@@ -39,6 +42,8 @@ export function ImportVendorStockModal({
   setIsOpen,
   onImportSuccess,
 }: ImportVendorStockModalProps) {
+  const [activeTab, setActiveTab] = useState<"stock" | "openpo">("stock");
+  
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,6 +54,12 @@ export function ImportVendorStockModal({
   const authRole = useAuthStore((state) => state.role);
   const authCompany = useAuthStore((state) => state.companyName);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "stock" | "openpo");
+    handleRemoveFile();
+  };
 
   const handleFileSelect = (file: File | undefined) => {
     setError(null);
@@ -79,23 +90,30 @@ export function ImportVendorStockModal({
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
-
   
   const handleDownloadTemplate = () => {
-    const headers = ["Material Code", "Vendor Stock", "Open PO"];
     
-    const dummyData = "\nCONTOH-MAT-01,100,50"; 
+    let headers = ["Material Code"];
+    let dummyData = "\nCONTOH-MAT-01";
+
+    if (activeTab === "stock") {
+        headers.push("Vendor Stock");
+        dummyData += ",100";
+    } else {
+        headers.push("Open PO");
+        dummyData += ",50";
+    }
+    
     const csvContent = headers.join(",") + dummyData;
     
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "template-supplier-stock.csv";
+    link.download = `template-${activeTab === "stock" ? "vendor-stock" : "open-po"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
   
   const handleAnalyze = () => {
     if (!selectedFile) return;
@@ -112,11 +130,17 @@ export function ImportVendorStockModal({
         const fields = (results.meta.fields || []).map((f) => f.trim());
         
         
-        const requiredHeaders = ["Material Code", "Vendor Stock", "Open PO"];
+        const requiredHeaders = ["Material Code"];
+        if (activeTab === "stock") {
+            requiredHeaders.push("Vendor Stock");
+        } else {
+            requiredHeaders.push("Open PO");
+        }
+
         const missingHeaders = requiredHeaders.filter(h => !fields.includes(h));
 
         if (missingHeaders.length > 0) {
-          setError(`Header CSV salah. Wajib ada: ${missingHeaders.join(", ")}`);
+          setError(`Header CSV salah untuk tab ${activeTab === 'stock' ? 'Stock' : 'PO'}. Wajib ada: ${missingHeaders.join(", ")}`);
           setIsLoading(false);
           return;
         }
@@ -124,22 +148,43 @@ export function ImportVendorStockModal({
         const payloads: VendorStockPayload[] = [];
         let errorRows = 0;
 
-        data.forEach((row, index) => {
+        data.forEach((row) => {
            const code = row["Material Code"]?.trim();
            if (!code) return; 
 
-           const vStock = parseInt(row["Vendor Stock"]?.replace(/[,.]/g, "") || "0", 10);
-           const openPO = parseInt(row["Open PO"]?.replace(/[,.]/g, "") || "0", 10);
+           let vStock = 0;
+           let openPO = 0;
 
-           if (isNaN(vStock) || isNaN(openPO)) {
-             errorRows++;
+           
+           if (activeTab === "stock") {
+               const rawStock = row["Vendor Stock"]?.replace(/[,.]/g, "") || "0";
+               vStock = parseInt(rawStock, 10);
+               
+               
+               openPO = 0; 
+               
+               if (isNaN(vStock)) {
+                   errorRows++;
+                   return;
+               }
            } else {
-             payloads.push({
-               materialCode: code,
-               vendorStock: vStock,
-               openPO: openPO
-             });
+               const rawPO = row["Open PO"]?.replace(/[,.]/g, "") || "0";
+               openPO = parseInt(rawPO, 10);
+               vStock = 0;
+
+               if (isNaN(openPO)) {
+                   errorRows++;
+                   return;
+               }
            }
+
+           payloads.push({
+             materialCode: code,
+             vendorStock: vStock,
+             openPO: openPO,
+             
+             
+           });
         });
 
         if (payloads.length === 0) {
@@ -158,15 +203,16 @@ export function ImportVendorStockModal({
       }
     });
   };
-
   
   const handleFinalImport = async () => {
     if (validPayloads.length === 0) return;
 
     setIsLoading(true);
-    setProgress("Sedang mengupdate stok...");
+    setProgress("Sedang mengupdate database...");
 
     try {
+      
+      
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/bulk-stock`, {
         method: "POST",
         headers: {
@@ -183,7 +229,8 @@ export function ImportVendorStockModal({
         throw new Error(json.error || "Gagal melakukan update.");
       }
 
-      let message = `Berhasil update ${json.updatedCount} material.`;
+      let message = `Berhasil update ${json.updatedCount} material (${activeTab === 'stock' ? 'Vendor Stock' : 'Open PO'}).`;
+      
       if (json.errors && json.errors.length > 0) {
         message += `\n\nGagal (${json.errors.length} item):\n` + json.errors.slice(0, 5).join("\n") + (json.errors.length > 5 ? "\n..." : "");
       }
@@ -203,112 +250,122 @@ export function ImportVendorStockModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Import Supplier Stock & Open PO</DialogTitle>
+        <DialogTitle>Import Data Supplier</DialogTitle>
         <DialogDescription>
-          Update stok vendor dan open PO secara massal via CSV.
+          Pilih kategori data yang ingin diupdate melalui file CSV.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4 py-4">
-        {}
-        <Button
-          type="button"
-          variant="outline"
-          className="flex items-center gap-2 w-full border-dashed"
-          onClick={handleDownloadTemplate}
-        >
-          <Download  />
-          Download Template CSV (Supplier)
-        </Button>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="stock">Supplier Stock</TabsTrigger>
+          <TabsTrigger value="openpo">Open PO</TabsTrigger>
+        </TabsList>
 
         {}
-        <Label
-          htmlFor="csvFileVendor"
-          className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-            isDragging
-              ? "border-primary bg-primary/10"
-              : "border-gray-300 hover:bg-gray-50 dark:border-gray-600"
-          } ${isLoading ? "cursor-not-allowed opacity-50" : ""}`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-        >
-          {selectedFile ? (
-            <div className="flex flex-col items-center p-2 text-center">
-              <FileSpreadsheet className="w-8 h-8 text-green-600 mb-2" />
-              <p className="font-medium text-sm truncate max-w-[200px]">{selectedFile.name}</p>
-              <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-6 text-red-500 hover:text-red-700"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleRemoveFile();
-                }}
-              >
-                <X className="w-3 h-3 mr-1" /> Ganti File
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-              <UploadCloud className="w-8 h-8 mb-2 text-gray-400" />
-              <p className="text-sm text-gray-500">
-                Klik atau tarik file CSV ke sini
-              </p>
+        <div className="grid gap-4 py-4 mt-2">
+          
+          <Button
+            type="button"
+            variant="outline"
+            className="flex items-center gap-2 w-full border-dashed"
+            onClick={handleDownloadTemplate}
+          >
+            <Download className="h-4 w-4" />
+            Download Template CSV ({activeTab === "stock" ? "Stock" : "Open PO"})
+          </Button>
+
+          <Label
+            htmlFor="csvFileVendor"
+            className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              isDragging
+                ? "border-primary bg-primary/10"
+                : "border-gray-300 hover:bg-gray-50 dark:border-gray-600"
+            } ${isLoading ? "cursor-not-allowed opacity-50" : ""}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+          >
+            {selectedFile ? (
+              <div className="flex flex-col items-center p-2 text-center">
+                <FileSpreadsheet className="w-8 h-8 text-green-600 mb-2" />
+                <p className="font-medium text-sm truncate max-w-[200px]">{selectedFile.name}</p>
+                <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-6 text-red-500 hover:text-red-700"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); 
+                    handleRemoveFile();
+                  }}
+                >
+                  <X className="w-3 h-3 mr-1" /> Ganti File
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                <UploadCloud className="w-8 h-8 mb-2 text-gray-400" />
+                <p className="text-sm text-gray-500">
+                  Klik atau tarik file CSV <b>{activeTab === "stock" ? "Stock" : "Open PO"}</b> ke sini
+                </p>
+              </div>
+            )}
+            <Input
+              id="csvFileVendor"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={(e) => handleFileSelect(e.target.files?.[0])}
+              disabled={isLoading}
+            />
+          </Label>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200">
+              {error}
             </div>
           )}
-          <Input
-            id="csvFileVendor"
-            type="file"
-            accept=".csv"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={(e) => handleFileSelect(e.target.files?.[0])}
-            disabled={isLoading}
-          />
-        </Label>
 
-        {}
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200">
-            {error}
-          </div>
-        )}
+          {!error && validPayloads.length > 0 && (
+            <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>
+                Siap update <b>{validPayloads.length}</b> material 
+                <span className="text-xs ml-1 opacity-75">
+                  ({activeTab === "stock" ? "Vendor Stock" : "Open PO"})
+                </span>
+              </span>
+            </div>
+          )}
 
-        {}
-        {!error && validPayloads.length > 0 && (
-          <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Siap mengupdate <b>{validPayloads.length}</b> material.</span>
-          </div>
-        )}
+          {isLoading && (
+            <div className="space-y-2">
+              <Progress value={100} className="h-2 animate-pulse" />
+              <p className="text-xs text-center text-muted-foreground">{progress}</p>
+            </div>
+          )}
+        </div>
 
-        {}
-        {isLoading && (
-          <div className="space-y-2">
-            <Progress value={100} className="h-2 animate-pulse" />
-            <p className="text-xs text-center text-muted-foreground">{progress}</p>
-          </div>
-        )}
-      </div>
-
-      <DialogFooter>
-        <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
-          Tutup
-        </Button>
-        {validPayloads.length > 0 ? (
-          <Button onClick={handleFinalImport} disabled={isLoading} className="bg-green-600 hover:bg-green-700">
-            {isLoading ? "Memproses..." : "Update Stok Sekarang"}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
+            Tutup
           </Button>
-        ) : (
-          <Button onClick={handleAnalyze} disabled={!selectedFile || isLoading}>
-            Analisis File
-          </Button>
-        )}
-      </DialogFooter>
+          {validPayloads.length > 0 ? (
+            <Button onClick={handleFinalImport} disabled={isLoading} className="bg-green-600 hover:bg-green-700">
+              {isLoading ? "Memproses..." : "Update Sekarang"}
+            </Button>
+          ) : (
+            <Button onClick={handleAnalyze} disabled={!selectedFile || isLoading}>
+              Analisis File
+            </Button>
+          )}
+        </DialogFooter>
+      </Tabs>
     </DialogContent>
   );
 }
