@@ -30,6 +30,7 @@ interface MaterialPayload {
   maxBinQty: number;
   minBinQty: number;
   vendorCode: string;
+  currentQuantity: number; 
   productType: "kanban" | "consumable" | "option";
   bins?: Partial<MaterialBin>[];
 }
@@ -37,9 +38,7 @@ interface MaterialPayload {
 interface ValidationRow {
   rowNum: number;
   materialCode: string;
-  
   col1: number; 
-  
   col2: number; 
   message: string;
   originalRow: Record<string, string>;
@@ -66,9 +65,7 @@ export function ImportMaterialModal({
   const [progress, setProgress] = useState("");
   const [uploadPercent, setUploadPercent] = useState(0);
   
-  
   const [activeTab, setActiveTab] = useState<"kanban" | "consumable" | "option">("kanban");
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,12 +113,11 @@ export function ImportMaterialModal({
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  
   const handleDownloadTemplate = () => {
-    let headers = ["Kode Material", "Deskripsi", "Lokasi", "Vendor"];
+    
+    let headers = ["Kode Material", "Deskripsi", "Lokasi", "Vendor", "Current Qty"];
 
     if (activeTab === "kanban") {
-      
       headers.push("Pack Qty", "Max Qty");
     } else if (activeTab === "consumable") {
       headers.push("Pack Qty", "Total Bins", "Qty Per Bin");
@@ -139,7 +135,6 @@ export function ImportMaterialModal({
     document.body.removeChild(link);
   };
 
-  
   const handleAnalyze = async () => {
     if (!selectedFile) {
       setError("Silakan pilih file CSV untuk diimpor.");
@@ -162,7 +157,6 @@ export function ImportMaterialModal({
         let typeHeaders: string[] = [];
 
         if (activeTab === "kanban") {
-          
           typeHeaders = ["Pack Qty", "Max Qty"];
         } else if (activeTab === "consumable") {
           typeHeaders = ["Pack Qty", "Total Bins", "Qty Per Bin"];
@@ -192,13 +186,11 @@ export function ImportMaterialModal({
           if (!code) continue; 
 
           const pInt = (key: string) => parseInt(trimmed[key]?.replace(/[,.]/g, "") || "0", 10);
+          const currentQty = pInt("Current Qty"); 
 
           if (activeTab === "kanban") {
-            
             const packQty = pInt("Pack Qty");
             const rawMax = pInt("Max Qty");
-            
-            
             const roundedMax = roundUpToPack(rawMax, packQty);
             const minQty = packQty; 
 
@@ -206,6 +198,9 @@ export function ImportMaterialModal({
               valErrs.push({ rowNum, materialCode: code, col1: rawMax, col2: packQty, message: "Pack Qty harus > 0", originalRow: trimmed });
             } else if (roundedMax < minQty) {
               valErrs.push({ rowNum, materialCode: code, col1: roundedMax, col2: packQty, message: `Max (${roundedMax}) < Pack/Min (${packQty})`, originalRow: trimmed });
+            } else if (currentQty > roundedMax) {
+               
+               valErrs.push({ rowNum, materialCode: code, col1: roundedMax, col2: packQty, message: `Current Qty (${currentQty}) > Max (${roundedMax})`, originalRow: trimmed });
             } else {
               valPayloads.push({
                 material: code,
@@ -214,6 +209,7 @@ export function ImportMaterialModal({
                 packQuantity: packQty,
                 maxBinQty: roundedMax,
                 minBinQty: minQty, 
+                currentQuantity: currentQty, 
                 vendorCode: trimmed["Vendor"],
                 productType: "kanban",
                 bins: [] 
@@ -224,6 +220,7 @@ export function ImportMaterialModal({
             
             const totalBins = pInt("Total Bins");
             const qtyPerBin = pInt("Qty Per Bin");
+            const totalMaxCapacity = totalBins * qtyPerBin;
             
             let packQty = 1; 
             if (activeTab === "consumable") {
@@ -236,12 +233,14 @@ export function ImportMaterialModal({
                valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: "Pack Qty harus > 0", originalRow: trimmed });
             } else if (qtyPerBin < packQty) {
               valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: `Qty Per Bin (${qtyPerBin}) < Pack Qty (${packQty})`, originalRow: trimmed });
+            } else if (currentQty > totalMaxCapacity) {
+               valErrs.push({ rowNum, materialCode: code, col1: totalBins, col2: qtyPerBin, message: `Current Qty (${currentQty}) > Total Cap (${totalMaxCapacity})`, originalRow: trimmed });
             } else {
               
               const generatedBins = Array.from({ length: totalBins }, (_, idx) => ({
                 binSequenceId: idx + 1,
                 maxBinStock: qtyPerBin,
-                currentBinStock: 0
+                currentBinStock: 0 
               }));
 
               valPayloads.push({
@@ -249,8 +248,9 @@ export function ImportMaterialModal({
                 materialDescription: trimmed["Deskripsi"] || "",
                 lokasi: trimmed["Lokasi"] || "",
                 packQuantity: packQty,
-                maxBinQty: totalBins * qtyPerBin,
+                maxBinQty: totalMaxCapacity,
                 minBinQty: packQty, 
+                currentQuantity: currentQty, 
                 vendorCode: trimmed["Vendor"],
                 productType: activeTab,
                 bins: generatedBins
@@ -271,7 +271,6 @@ export function ImportMaterialModal({
     });
   };
 
-  
   const handleEditField = (index: number, field: "col1" | "col2", value: string) => {
     const updated = [...validationRows];
     updated[index][field] = parseInt(value, 10) || 0;
@@ -283,14 +282,14 @@ export function ImportMaterialModal({
     const updated = [...validationRows];
     const row = updated[index];
     const trimmed = row.originalRow;
+    const currentQty = parseInt(trimmed["Current Qty"]?.replace(/[,.]/g, "") || "0", 10);
 
     if (activeTab === "kanban") {
-       
        const packQty = row.col2;
        const newMax = roundUpToPack(row.col1, packQty);
        const minQty = packQty; 
 
-       if (packQty > 0 && newMax >= minQty) {
+       if (packQty > 0 && newMax >= minQty && currentQty <= newMax) {
           setValidPayloads(prev => [...prev, {
             material: row.materialCode,
             materialDescription: trimmed["Deskripsi"] || "",
@@ -298,6 +297,7 @@ export function ImportMaterialModal({
             packQuantity: packQty,
             maxBinQty: newMax,
             minBinQty: minQty,
+            currentQuantity: currentQty,
             vendorCode: trimmed["Vendor"],
             productType: "kanban",
             bins: []
@@ -305,18 +305,22 @@ export function ImportMaterialModal({
           updated.splice(index, 1);
        } else {
          row.col1 = newMax;
-         
-         row.message = `Gagal: Max (${newMax}) < Pack (${packQty}) atau Pack Qty <= 0`;
+         if(currentQty > newMax) {
+             row.message = `Gagal: Current Qty (${currentQty}) > Max (${newMax})`;
+         } else {
+             row.message = `Gagal: Max (${newMax}) < Pack (${packQty}) atau Pack Qty <= 0`;
+         }
        }
     } else {
        
        const totalBins = row.col1;
        const qtyPerBin = row.col2;
+       const totalCapacity = totalBins * qtyPerBin;
        
        let packQty = 1;
        if (activeTab === "consumable") packQty = parseInt(trimmed["Pack Qty"], 10) || 0;
 
-       if (totalBins > 0 && qtyPerBin > 0 && packQty > 0 && qtyPerBin >= packQty) {
+       if (totalBins > 0 && qtyPerBin > 0 && packQty > 0 && qtyPerBin >= packQty && currentQty <= totalCapacity) {
           const generatedBins = Array.from({ length: totalBins }, (_, idx) => ({
             binSequenceId: idx + 1,
             maxBinStock: qtyPerBin,
@@ -327,15 +331,20 @@ export function ImportMaterialModal({
             materialDescription: trimmed["Deskripsi"] || "",
             lokasi: trimmed["Lokasi"] || "",
             packQuantity: packQty,
-            maxBinQty: totalBins * qtyPerBin,
+            maxBinQty: totalCapacity,
             minBinQty: packQty,
+            currentQuantity: currentQty,
             vendorCode: trimmed["Vendor"],
             productType: activeTab,
             bins: generatedBins
           }]);
           updated.splice(index, 1);
        } else {
-          row.message = `Gagal: Total Bins > 0, Qty/Bin >= Pack Qty (${packQty})`;
+          if (currentQty > totalCapacity) {
+              row.message = `Gagal: Current Qty (${currentQty}) > Total Cap (${totalCapacity})`;
+          } else {
+              row.message = `Gagal: Total Bins > 0, Qty/Bin >= Pack Qty (${packQty})`;
+          }
        }
     }
     setValidationRows(updated);
@@ -437,7 +446,7 @@ export function ImportMaterialModal({
       <DialogHeader>
         <DialogTitle>Impor Massal Material</DialogTitle>
         <DialogDescription>
-          Pilih tipe produk (Kanban / Consumable / Option), download template yang sesuai, lalu upload.
+          Pilih tipe produk, download template, isi data (termasuk Current Qty jika ada stok awal), lalu upload.
         </DialogDescription>
       </DialogHeader>
 
@@ -450,12 +459,11 @@ export function ImportMaterialModal({
           </TabsList>
 
           <div className="mt-4 space-y-4">
-            {}
             <div className="flex items-center justify-between">
                <div className="text-sm text-muted-foreground">
-                  {activeTab === 'kanban' && "Input: Pack Qty, Max Qty. (Min Qty = Pack Qty)"}
-                  {activeTab === 'consumable' && "Input: Pack Qty, Total Bins, Qty Per Bin."}
-                  {activeTab === 'option' && "Input: Total Bins, Qty Per Bin (Pack Qty = 1)."}
+                  {activeTab === 'kanban' && "Input: Pack Qty, Max Qty, Current Qty."}
+                  {activeTab === 'consumable' && "Input: Pack Qty, Total Bins, Qty/Bin, Current Qty."}
+                  {activeTab === 'option' && "Input: Total Bins, Qty/Bin, Current Qty."}
                </div>
                <Button
                   type="button"
@@ -468,12 +476,10 @@ export function ImportMaterialModal({
                </Button>
             </div>
 
-            {}
             <TabsContent value="kanban" className="mt-0"><UploadArea /></TabsContent>
             <TabsContent value="consumable" className="mt-0"><UploadArea /></TabsContent>
             <TabsContent value="option" className="mt-0"><UploadArea /></TabsContent>
 
-            {}
             {error && (
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md flex items-center gap-2 border border-red-200">
                 <AlertCircle className="w-4 h-4 flex-shrink-0"/>
@@ -481,7 +487,6 @@ export function ImportMaterialModal({
               </div>
             )}
 
-            {}
             {validationRows.length > 0 && (
               <div className="bg-red-50 border border-red-300 text-red-800 text-sm rounded-md p-3 max-h-60 overflow-y-auto">
                 <p className="font-semibold mb-2 text-xs">Perbaiki {validationRows.length} baris error:</p>
@@ -532,7 +537,6 @@ export function ImportMaterialModal({
               </div>
             )}
 
-            {}
             {isLoading && (
               <div className="space-y-1">
                 <Progress value={uploadPercent} className="w-full h-2" />
