@@ -62,16 +62,23 @@ import { StockMovement, useAuthStore } from "@/lib/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+
 function formatMovementType(t: string) {
   const lower = t.toLowerCase().trim();
+  // Existing
   if (lower === "scan in") return "Scan In Stock";
   if (lower === "scan out") return "Scan Out Stock";
   if (lower === "scan in vendor") return "Scan In Vendor Stock";
   if (lower === "scan out vendor") return "Scan Out Vendor Stock";
   if (lower === "edit") return "Edit Stock";
   if (lower === "edit vendor") return "Edit Vendor Stock";
+  if (lower === "scan in (special)") return "Scan In Special";
+  if (lower === "scan out (special)") return "Scan Out Special";
+  if (lower === "edit (special)") return "Edit Stock Special";
+  
   return t;
 }
+
 
 export interface MergedStockMovement extends StockMovement {
   movementTypes: string[];

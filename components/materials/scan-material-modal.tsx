@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Trash2 } from "lucide-react";
-import { Label } from "../ui/label";
+import { Label } from "@/components/ui/label"; 
 import {
   MaterialStatusResponse,
   useAuthStore,
@@ -31,6 +31,7 @@ const formatBinId = (id: number | null): string => {
 };
 
 
+
 interface BinPreviewProps {
   baseData: MaterialStatusResponse;
   simulatedBins: Map<number, number>;
@@ -38,27 +39,7 @@ interface BinPreviewProps {
 }
 
 function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps) {
-  const { maxBinQty, packQuantity, quantityPerBin } = baseData;
-
-  
-  let totalBinSegments = 0;
-  let qtyPerSegment = 0;
-
-  if (baseData.bins && baseData.bins.length > 0) {
-      totalBinSegments = baseData.bins.length;
-      qtyPerSegment = baseData.bins[0].maxBinStock;
-  } else {
-      
-      if (packQuantity <= 0) return <BinPreviewSkeleton />;
-      qtyPerSegment = quantityPerBin || packQuantity;
-      totalBinSegments = Math.floor(maxBinQty / packQuantity);
-  }
-
-  if (totalBinSegments === 0 || qtyPerSegment <= 0) {
-    return <BinPreviewSkeleton />;
-  }
-  
-  const binIds = Array.from({ length: totalBinSegments }, (_, i) => i + 1);
+  const { maxBinQty, packQuantity, quantityPerBin, productType } = baseData;
 
   const current = simulatedTotal;
   const shortagePoint = Math.ceil(maxBinQty * 0.3);
@@ -69,15 +50,49 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
   else if (current <= preshortagePoint) overallColorClass = "bg-yellow-500";
   if (current < 0 || current > maxBinQty) overallColorClass = "bg-destructive";
 
+  // --- LOGIC GENERATE KOTAK (Pack atau Bin) ---
+  let totalSegments = 0;
+  let qtyPerSegment = 0;
+
+  // Cek apakah Special ATAU Kanban
+  if (productType === 'special') {
+      // Logic Special: Hitung jumlah Pack virtual
+      if (packQuantity <= 0) return <BinPreviewSkeleton />;
+      qtyPerSegment = packQuantity;
+      totalSegments = Math.floor(maxBinQty / packQuantity);
+  } else {
+      // Logic Kanban/Option (Bin Fisik)
+      if (baseData.bins && baseData.bins.length > 0) {
+          totalSegments = baseData.bins.length;
+          qtyPerSegment = baseData.bins[0].maxBinStock;
+      } else {
+          // Fallback jika data bin belum ada
+          if (packQuantity <= 0) return <BinPreviewSkeleton />;
+          qtyPerSegment = quantityPerBin || packQuantity;
+          totalSegments = Math.floor(maxBinQty / packQuantity);
+      }
+  }
+
+  if (totalSegments === 0 || qtyPerSegment <= 0) {
+    return <BinPreviewSkeleton />;
+  }
+  
+  const binIds = Array.from({ length: totalSegments }, (_, i) => i + 1);
+  const isSpecial = productType === 'special';
+
   return (
     <div className="w-full min-w-[150px]">
+      {/* HEADER */}
       <div className="flex justify-between text-xs font-mono mb-1">
         <span className={current < 0 || current > maxBinQty ? "text-destructive font-bold" : ""}>
           Stok: {current} / {maxBinQty}
         </span>
-        <span className="text-gray-500">{totalBinSegments} bin</span>
+        <span className="text-gray-500">
+            {isSpecial ? '(Pack Mode)' : `${totalSegments} bin`}
+        </span>
       </div>
 
+      {/* VISUAL BAR (KOTAK-KOTAK) */}
       <div className="flex space-x-1 h-3">
         {binIds.map((binId) => {
           const binStock = simulatedBins.get(binId) || 0;
@@ -89,7 +104,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
             <div
               key={binId}
               className="relative flex-1 h-full bg-gray-200 rounded-sm overflow-hidden border border-gray-300/50"
-              title={`Bin ${formatBinId(binId)}: ${binStock}`}
+              title={`${isSpecial ? 'Pack' : 'Bin'} ${formatBinId(binId)}: ${binStock}`}
             >
               {percent > 0 && (
                 <div
@@ -102,6 +117,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
         })}
       </div>
 
+      {/* FOOTER LABEL (P... atau B...) */}
       <div className="flex space-x-1 mt-1">
         {binIds.map((binId) => {
           const currentBinStock = simulatedBins.get(binId) || 0;
@@ -109,7 +125,10 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
 
           return (
             <div key={binId} className="flex-1 text-center font-mono text-[10px] leading-tight">
-              <div className="text-gray-500 text-[9px]">B{formatBinId(binId)}</div>
+              <div className="text-gray-500 text-[9px]">
+                  {/* Label P untuk Special, B untuk lainnya */}
+                  {isSpecial ? 'P' : 'B'}{formatBinId(binId)}
+              </div>
               <span className={isFilled ? "font-bold text-black" : "text-gray-300"}>
                 {currentBinStock}
               </span>
@@ -137,6 +156,7 @@ function BinPreviewSkeleton() {
     </div>
   );
 }
+
 
 
 type ScanFormat = "IN" | "OUT_DEFAULT" | "OUT_EXPLICIT";
@@ -276,6 +296,8 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   };
 };
 
+
+
 type ScanEntry = {
   id: number;
   rawScan: string;
@@ -321,6 +343,8 @@ const newEmptyScan = (): ScanEntry => ({
   parsed: parseRawScan(""),
 });
 
+
+
 export function AutoScanMaterialModal({
   setIsOpen,
   onScansSaved,
@@ -336,6 +360,7 @@ export function AutoScanMaterialModal({
   const [scans, setScans] = useState<ScanEntry[]>([newEmptyScan()]);
   const inputRefs = useRef<Map<number, HTMLInputElement | null>>(new Map());
 
+  
   const validateAndFetchGroup = useCallback(
     async (materialCodeToValidate: string) => {
       setScans((prev) =>
@@ -399,17 +424,33 @@ export function AutoScanMaterialModal({
       const simulatedBins = new Map<number, number>();
 
       
-      
-      
       if (baseData.bins && baseData.bins.length > 0) {
         baseData.bins.forEach((b) => {
           simulatedBins.set(b.binSequenceId, b.currentBinStock);
         });
-      } else if (baseData.productType === "kanban") {
+      } else {
         
-        const totalSegments = Math.floor(baseData.maxBinQty / baseData.packQuantity);
-        for (let i = 1; i <= totalSegments; i++) {
-             simulatedBins.set(i, 0);
+        const totalSegments = Math.floor(baseData.maxBinQty / baseData.packQuantity) || 1;
+        
+        
+        if (baseData.productType?.toLowerCase() === 'special') {
+           let visualRem = runningQuantity;
+           for (let i = 1; i <= totalSegments; i++) {
+                if (visualRem >= baseData.packQuantity) {
+                    simulatedBins.set(i, baseData.packQuantity);
+                    visualRem -= baseData.packQuantity;
+                } else if (visualRem > 0) {
+                    simulatedBins.set(i, visualRem);
+                    visualRem = 0;
+                } else {
+                    simulatedBins.set(i, 0);
+                }
+           }
+        } else {
+           
+           for (let i = 1; i <= totalSegments; i++) {
+                simulatedBins.set(i, 0);
+           }
         }
       }
 
@@ -419,8 +460,10 @@ export function AutoScanMaterialModal({
             return scan;
           }
 
-          const { productType, packQuantity, maxBinQty, quantityPerBin } =
-            baseData;
+          const { packQuantity, maxBinQty, quantityPerBin } = baseData;
+          
+          const productType = baseData.productType.toLowerCase(); 
+          
           const parsed = scan.parsed;
           let rowError: string | null = parsed.error;
 
@@ -428,20 +471,23 @@ export function AutoScanMaterialModal({
           const predictedBinId = parsed.binId;
           const formattedBin = formatBinId(predictedBinId); 
 
+          
           if (predictedBinId !== null) {
             let maxAllowedBinId = 0;
-            
             if (baseData.bins && baseData.bins.length > 0) {
                  maxAllowedBinId = Math.max(...baseData.bins.map(b => b.binSequenceId));
             } else {
                  maxAllowedBinId = Math.floor(maxBinQty / packQuantity);
+                 if (maxAllowedBinId === 0) maxAllowedBinId = 99;
             }
 
-            if (predictedBinId > maxAllowedBinId) {
+            
+            if (productType !== 'special' && predictedBinId > maxAllowedBinId) {
                 rowError = `Bin ${formattedBin} tidak ada. (Maksimal: ${formatBinId(maxAllowedBinId)})`;
             }
           }
 
+          
           let predictedQtyPcs: number | null = null;
           let inputQty: string = scan.inputQty;
           let showQtyInput: boolean = false;
@@ -450,7 +496,8 @@ export function AutoScanMaterialModal({
 
           if (!rowError && parsed.format && predictedBinId !== null) {
             if (parsed.format === "IN") {
-              predictedQtyPcs = quantityPerBin;
+              
+              predictedQtyPcs = (productType === 'special') ? packQuantity : quantityPerBin;
               finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`; 
             } else if (parsed.format === "OUT_DEFAULT") {
               if (scan.inputQty === "1") inputQty = "1";
@@ -458,12 +505,14 @@ export function AutoScanMaterialModal({
               if (productType === "kanban") {
                 predictedQtyPcs = quantityPerBin;
                 finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}`;
-              } else if (productType === "consumable") {
-                showQtyInput = true;
-                qtyInputLabel = "Packs";
-                predictedQtyPcs = parseInt(inputQty, 10) * packQuantity;
-                finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_${inputQty}`;
-              } else if (productType === "option") {
+              } else if (productType === "special") {
+                
+                predictedQtyPcs = packQuantity;
+                
+                finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_1`; 
+                
+                
+              } else if (productType === "consumable" || productType === "option") {
                 showQtyInput = true;
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = parseInt(inputQty, 10) * packQuantity;
@@ -477,11 +526,12 @@ export function AutoScanMaterialModal({
 
               if (productType === "kanban") {
                 rowError = "Format 4-bagian (dgn Qty) tidak valid untuk Kanban.";
-              } else if (productType === "consumable") {
-                showQtyInput = true;
-                qtyInputLabel = "Packs";
+              } else if (productType === "special") {
+                
                 predictedQtyPcs = explicitQty * packQuantity;
-              } else if (productType === "option") {
+                showQtyInput = true; 
+                qtyInputLabel = "Packs";
+              } else if (productType === "consumable" || productType === "option") {
                 showQtyInput = true;
                 qtyInputLabel = "Packs";
                 predictedQtyPcs = explicitQty * packQuantity;
@@ -491,62 +541,112 @@ export function AutoScanMaterialModal({
 
           let newTotalQuantity = runningQuantity;
           
+          
           if (!rowError && predictedQtyPcs !== null && predictedBinId !== null) {
-            const currentBinStock = simulatedBins.get(predictedBinId) || 0;
+            
+            
+            if (productType === 'special') {
+                if (predictedMovement === "IN") {
+                    
+                    if (runningVendorStock < predictedQtyPcs) {
+                        rowError = `Vendor Stock tidak cukup (Sisa: ${runningVendorStock}, Butuh: ${predictedQtyPcs})`;
+                    }
+                    
+                    if (!rowError && runningOpenPO < predictedQtyPcs) {
+                        rowError = `Open PO tidak cukup (Sisa: ${runningOpenPO}, Butuh: ${predictedQtyPcs})`;
+                    }
+                    
+                    if (!rowError) {
+                        newTotalQuantity += predictedQtyPcs;
+                        
+                        if (newTotalQuantity > maxBinQty) {
+                             rowError = `Stok melebihi Max (${newTotalQuantity} / ${maxBinQty})`;
+                        } else {
+                             runningQuantity = newTotalQuantity;
+                             runningVendorStock -= predictedQtyPcs;
+                             runningOpenPO -= predictedQtyPcs;
+                        }
+                    }
+                } else {
+                    
+                    if (runningQuantity < predictedQtyPcs) {
+                        rowError = `Stok Total kurang (Sisa: ${runningQuantity}, Butuh: ${predictedQtyPcs})`;
+                    }
+                    if (!rowError) {
+                         newTotalQuantity -= predictedQtyPcs;
+                         runningQuantity = newTotalQuantity;
+                    }
+                }
 
-            if (predictedMovement === "IN") {
-              
-              if (currentBinStock > 0) {
-                  rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
-              }
+                
+                
+                if (!rowError) {
+                    let visualRem = runningQuantity;
+                    const totalSegments = Math.floor(maxBinQty / packQuantity) || 1;
+                    
+                    
+                    simulatedBins.clear(); 
 
-              if (!rowError) {
-                  if (runningVendorStock < predictedQtyPcs) {
+                    for (let i = 1; i <= totalSegments; i++) {
+                        if (visualRem >= packQuantity) {
+                            simulatedBins.set(i, packQuantity);
+                            visualRem -= packQuantity;
+                        } else if (visualRem > 0) {
+                            simulatedBins.set(i, visualRem);
+                            visualRem = 0;
+                        } else {
+                            simulatedBins.set(i, 0);
+                        }
+                    }
+                }
+
+            } else {
+                
+                const currentBinStock = simulatedBins.get(predictedBinId) || 0;
+
+                if (predictedMovement === "IN") {
+                  if (currentBinStock > 0) {
+                      rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
+                  }
+                  if (!rowError && runningVendorStock < predictedQtyPcs) {
                       rowError = `Vendor Stock tidak cukup (Sisa: ${runningVendorStock}, Butuh: ${predictedQtyPcs})`;
                   }
-              }
-
-              if (!rowError) {
-                  if (runningOpenPO < predictedQtyPcs) {
+                  if (!rowError && runningOpenPO < predictedQtyPcs) {
                       rowError = `Open PO tidak cukup (Sisa: ${runningOpenPO}, Butuh: ${predictedQtyPcs})`;
                   }
-              }
-              
-              if (!rowError) {
-                newTotalQuantity += predictedQtyPcs;
-                if (newTotalQuantity > maxBinQty) {
-                  rowError = `Stok melebihi Max (${newTotalQuantity} / ${maxBinQty})`;
-                } else {
-                  runningQuantity = newTotalQuantity;
-                  runningVendorStock -= predictedQtyPcs;
-                  runningOpenPO -= predictedQtyPcs;
-                  simulatedBins.set(predictedBinId, predictedQtyPcs);
-                }
-              }
-            } else {
-              if (currentBinStock === 0) {
-                  rowError = `Bin ${formattedBin} sudah kosong`;
-              } else if (currentBinStock < predictedQtyPcs) {
-                  rowError = `Stok Bin ${formattedBin} kurang (sisa ${currentBinStock}, butuh ${predictedQtyPcs})`;
-              }
-
-              if (!rowError) {
-                  newTotalQuantity -= predictedQtyPcs;
-
-                  if (newTotalQuantity < 0) {
-                    rowError = `Stok Total kurang dari 0 (${newTotalQuantity})`;
-                  } else {
-                    runningQuantity = newTotalQuantity;
-                    // FIX: Jangan update Vendor Stock saat Scan OUT
-                    // runningVendorStock += predictedQtyPcs;
-                    // runningOpenPO += predictedQtyPcs;
-                    simulatedBins.set(
-                        predictedBinId,
-                        currentBinStock - predictedQtyPcs
-                    );
+                  
+                  if (!rowError) {
+                    newTotalQuantity += predictedQtyPcs;
+                    if (newTotalQuantity > maxBinQty) {
+                      rowError = `Stok melebihi Max (${newTotalQuantity} / ${maxBinQty})`;
+                    } else {
+                      runningQuantity = newTotalQuantity;
+                      runningVendorStock -= predictedQtyPcs;
+                      runningOpenPO -= predictedQtyPcs;
+                      simulatedBins.set(predictedBinId, predictedQtyPcs);
+                    }
                   }
-              }
-            }
+                } else {
+                  if (currentBinStock === 0) {
+                      rowError = `Bin ${formattedBin} sudah kosong`;
+                  } else if (currentBinStock < predictedQtyPcs) {
+                      rowError = `Stok Bin ${formattedBin} kurang (sisa ${currentBinStock}, butuh ${predictedQtyPcs})`;
+                  }
+
+                  if (!rowError) {
+                      newTotalQuantity -= predictedQtyPcs;
+                      if (newTotalQuantity < 0) {
+                        rowError = `Stok Total kurang dari 0 (${newTotalQuantity})`;
+                      } else {
+                        runningQuantity = newTotalQuantity;
+                        simulatedBins.set(
+                            predictedBinId,
+                            currentBinStock - predictedQtyPcs
+                        );
+                      }
+                  }
+                }
+            } 
           }
 
           return {
@@ -625,9 +725,7 @@ export function AutoScanMaterialModal({
         let newPredictedQtyPcs = 0;
         if (scan.baseData) {
           const { productType, packQuantity } = scan.baseData;
-          if (productType === "consumable") {
-            newPredictedQtyPcs = qtyValue * packQuantity;
-          } else if (productType === "option") {
+          if (productType === "consumable" || productType === "option" || productType === "special") {
             newPredictedQtyPcs = qtyValue * packQuantity;
           }
         }
@@ -821,9 +919,20 @@ export function AutoScanMaterialModal({
   const getMovementText = (scan: ScanEntry) => {
     if (scan.status !== "success") return null;
 
-    const { predictedMovement, predictedQtyPcs, predictedBinId } = scan;
+    const { predictedMovement, predictedQtyPcs, predictedBinId, baseData } = scan;
     const binDisplay = formatBinId(predictedBinId);
+    
+    
+    const isSpecial = baseData?.productType?.toLowerCase() === 'special';
 
+    if (isSpecial) {
+         if (predictedMovement === "IN") {
+            return `+${predictedQtyPcs} pcs (IN Special)`;
+         }
+         return `-${predictedQtyPcs} pcs (OUT Special)`;
+    }
+
+    
     if (predictedMovement === "IN") {
       return `+${predictedQtyPcs} pcs (IN, Bin ${binDisplay || "?"})`;
     }

@@ -81,9 +81,12 @@ function formatMovementType(t: string) {
   if (lower === "scan out vendor") return "Scan Out Vendor Stock";
   if (lower === "edit") return "Edit Stock";
   if (lower === "edit vendor") return "Edit Vendor Stock";
+  if (lower === "scan in (special)") return "Scan In Special";
+  if (lower === "scan out (special)") return "Scan Out Special";
+  if (lower === "edit (special)") return "Edit Stock Special";
+
   return t;
 }
-
 export const getStockMovementColumns =
   (): ColumnDef<MergedStockMovement, unknown>[] => [
     {

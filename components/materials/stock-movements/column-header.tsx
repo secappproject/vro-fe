@@ -45,6 +45,10 @@ function formatMovementTypeHeader(t: string) {
   if (lower === "scan out") return "Scan Out Stock";
   if (lower === "scan in vendor") return "Scan In Vendor Stock";
   if (lower === "scan out vendor") return "Scan Out Vendor Stock";
+  
+  if (lower === "scan in (special)") return "Scan In Special";
+  if (lower === "scan out (special)") return "Scan Out Special";
+  if (lower === "edit (special)") return "Edit Stock Special";
 
   return t;
 }

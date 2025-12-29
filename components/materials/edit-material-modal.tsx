@@ -58,7 +58,6 @@ export function EditMaterialModal({
   const authRole = useAuthStore((state) => state.role);
   const authUsername = useAuthStore((state) => state.username);
 
-  
   const [vendors, setVendors] = useState<string[]>([]);
 
   const [materialCode, setMaterialCode] = useState(material.material);
@@ -67,8 +66,10 @@ export function EditMaterialModal({
   );
   const [location, setLocation] = useState(material.lokasi);
   const [vendorCode, setVendorCode] = useState(material.vendorCode);
+  
+  
   const [productType, setProductType] = useState<
-    "kanban" | "consumable" | "option"
+    "kanban" | "consumable" | "option" | "block" | "special"
   >(material.productType || "kanban");
 
   const [kanbanCurrentQuantity, setKanbanCurrentQuantity] = useState(
@@ -90,6 +91,9 @@ export function EditMaterialModal({
   );
 
   const [totalBins, setTotalBins] = useState(() => {
+    
+    if (material.productType === "special") return "0";
+    
     const qtyPerBin = material.bins?.[0]?.maxBinStock || material.packQuantity;
     if (qtyPerBin > 0 && material.productType !== "kanban") {
       return String(material.maxBinQty / qtyPerBin);
@@ -113,7 +117,6 @@ export function EditMaterialModal({
   const isViewer = authRole === "Viewer";
   const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
 
-  
   useEffect(() => {
     const fetchVendors = async () => {
       try {
@@ -128,7 +131,6 @@ export function EditMaterialModal({
         );
         if (response.ok) {
           const data = await response.json();
-          
           setVendors(data);
         }
       } catch (error) {
@@ -138,7 +140,6 @@ export function EditMaterialModal({
 
     fetchVendors();
   }, [authRole]);
-  
 
   const {
     nPackQty,
@@ -160,6 +161,13 @@ export function EditMaterialModal({
       nMinBinQty = nPackQty;
       nQuantityPerBinMemo = nPackQty;
       nTotalBinsMemo = nPackQty > 0 ? Math.ceil(nMaxBinQty / nPackQty) : 0;
+    } else if (productType === "special") {
+      
+      nQuantityPerBinMemo = nPackQty; 
+      const inputMax = parseInt(maxBinQty, 10) || 0;
+      nMaxBinQty = inputMax > 0 ? inputMax : nPackQty; 
+      nMinBinQty = nPackQty;
+      nTotalBinsMemo = 0;
     } else {
       nTotalBinsMemo = parseInt(totalBins, 10) || 0;
       nMaxBinQty = nTotalBinsMemo * nQuantityPerBinMemo;
@@ -181,7 +189,13 @@ export function EditMaterialModal({
 
   const nOpenPO = useMemo(() => parseInt(openPO, 10) || 0, [openPO]);
 
+  
   useEffect(() => {
+    if (productType === "special") {
+       setBins([]); 
+       return;
+    }
+
     setBins((currentBins) => {
       const newBins: MaterialBin[] = [];
       const targetLength = nTotalBinsMemo;
@@ -208,11 +222,14 @@ export function EditMaterialModal({
   }, [nTotalBinsMemo, nQuantityPerBinMemo, productType, material.id]);
 
   const nCurrentQuantity = useMemo(() => {
+    if (productType === "special") {
+       return parseInt(kanbanCurrentQuantity, 10) || 0;
+    }
     if (bins.length > 0) {
       return bins.reduce((acc, bin) => acc + bin.currentBinStock, 0);
     }
     return parseInt(kanbanCurrentQuantity, 10) || 0;
-  }, [bins, kanbanCurrentQuantity]);
+  }, [bins, kanbanCurrentQuantity, productType]);
 
   const stockHasChanged = useMemo(() => {
     return (
@@ -282,6 +299,7 @@ export function EditMaterialModal({
   };
 
   const replenishment = useMemo(() => {
+    if (productType === "special") return 0;
     const soh = nCurrentQuantity;
     const totalBins = nTotalBinsMemo;
     const qtyPerBin = nQuantityPerBinMemo;
@@ -290,7 +308,7 @@ export function EditMaterialModal({
 
     const calc = Math.floor(totalBins - soh / qtyPerBin);
     return calc < 0 ? 0 : calc;
-  }, [nCurrentQuantity, nTotalBinsMemo, nQuantityPerBinMemo]);
+  }, [nCurrentQuantity, nTotalBinsMemo, nQuantityPerBinMemo, productType]);
 
   const previewMaterial = useMemo((): Material => {
     return {
@@ -369,6 +387,13 @@ export function EditMaterialModal({
       if (nCurrentQuantity < 0) {
         newErrors.currentQuantity = "Current Stock tidak boleh negatif.";
       }
+    } else if (productType === "special") {
+       if (nPackQty <= 0) {
+         newErrors.packQuantity = "Pack Qty wajib > 0.";
+       }
+       if (nCurrentQuantity < 0) {
+         newErrors.currentQuantity = "Current Stock tidak boleh negatif.";
+       }
     } else {
       if (nTotalBinsMemo <= 0) {
         newErrors.totalBins = "Total Bins harus > 0.";
@@ -379,6 +404,8 @@ export function EditMaterialModal({
     }
 
     let generalError = "";
+    
+    
     bins.forEach((bin, index) => {
       if (bin.currentBinStock < 0) {
         newErrors[`bin_${index}`] = "Tidak boleh negatif.";
@@ -393,7 +420,8 @@ export function EditMaterialModal({
       newErrors.currentQuantity = "Melebihi Max Qty";
     }
 
-    if (nMaxBinQty > 0 && nPackQty > 0 && nMaxBinQty % nPackQty !== 0) {
+    
+    if (productType !== "special" && nMaxBinQty > 0 && nPackQty > 0 && nMaxBinQty % nPackQty !== 0) {
       generalError += `Max Qty (Final: ${nMaxBinQty}) harus merupakan kelipatan dari Pack Qty (${nPackQty}). `;
       setShowKelipatanError(true);
     }
@@ -488,6 +516,7 @@ export function EditMaterialModal({
       </DialogHeader>
 
       <div className="gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="materialCode" className="text-left pt-2">
             Kode Material
@@ -503,16 +532,7 @@ export function EditMaterialModal({
               className={errors.materialCode ? "border-destructive" : ""}
               disabled={isViewer || isGeneralInfoRestricted}
             />
-            {errors.materialCode && (
-              <p className="text-xs text-destructive mt-1">
-                {errors.materialCode}
-              </p>
-            )}
-            {isGeneralInfoRestricted && (
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Hanya Superuser yang dapat mengubah Kode Material.
-              </p>
-            )}
+             {}
           </div>
         </div>
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
@@ -541,6 +561,8 @@ export function EditMaterialModal({
             disabled={isViewer || isGeneralInfoRestricted}
           />
         </div>
+
+        {}
         <div className="grid grid-cols-4 items-center gap-4 mb-4">
           <Label htmlFor="productType" className="text-left">
             Tipe Produk
@@ -548,7 +570,7 @@ export function EditMaterialModal({
           <Select
             value={productType}
             onValueChange={(value: string) => {
-              const newType = value as "kanban" | "consumable" | "option";
+              const newType = value as "kanban" | "consumable" | "option" | "special";
               setProductType(newType);
               if (newType === "option") {
                 setQuantityPerBin("1");
@@ -563,11 +585,13 @@ export function EditMaterialModal({
               <SelectItem value="kanban">Kanban (Agregat)</SelectItem>
               <SelectItem value="consumable">Consumable (Per Bin)</SelectItem>
               <SelectItem value="option">Option (Per Bin)</SelectItem>
+              <SelectItem value="special">Special Consumable (No Bin)</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {productType === "kanban" && bins.length === 0 && (
+        {}
+        {(productType === "kanban" || productType === "special") && bins.length === 0 && (
           <div className="grid grid-cols-4 items-start gap-4 mb-4">
             <Label htmlFor="currentStock" className="text-left pt-2">
               Current Stock (SOH)
@@ -600,6 +624,7 @@ export function EditMaterialModal({
           </div>
         )}
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="pic" className="text-left pt-2">
             PIC
@@ -628,6 +653,7 @@ export function EditMaterialModal({
           </div>
         </div>
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="vendorStock" className="text-left pt-2">
             Vendor Stock
@@ -666,6 +692,7 @@ export function EditMaterialModal({
           </div>
         </div>
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="vendorCode" className="text-left pt-2">
             Vendor
@@ -706,6 +733,7 @@ export function EditMaterialModal({
           </div>
         </div>
 
+        {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="openPO" className="text-left pt-2">
             Open PO
@@ -729,17 +757,11 @@ export function EditMaterialModal({
               }
               disabled={isViewer}
             />
-            {errors.openPO && (
-              <p className="text-xs text-destructive mt-1">{errors.openPO}</p>
-            )}
-            {stockHasChanged && nOpenPO !== (material.openPO ?? 0) && (
-              <p className="text-xs text-destructive mt-1">
-                Open PO berubah. PIC wajib diisi.
-              </p>
-            )}
+             {}
           </div>
         </div>
 
+        {}
         <div className="col-span-4 border-t pt-4 mt-2 grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="packQty">Pack Quantity</Label>
@@ -761,9 +783,9 @@ export function EditMaterialModal({
               </p>
             )}
           </div>
-          {productType === "kanban" && (
+          {(productType === "kanban" || productType === "special") && (
             <div className="space-y-2">
-              <Label htmlFor="maxBinQty">Max Qty (Total)</Label>
+              <Label htmlFor="maxBinQty">{productType === "special" ? "Max Capacity" : "Max Qty (Total)"}</Label>
               <Input
                 id="maxBinQty"
                 type="number"
@@ -798,11 +820,7 @@ export function EditMaterialModal({
                 className={errors.totalBins ? "border-destructive" : ""}
                 disabled={isViewer}
               />
-              {errors.totalBins && (
-                <p className="text-xs text-destructive mt-1">
-                  {errors.totalBins}
-                </p>
-              )}
+               {}
             </div>
           )}
           {(productType === "consumable" || productType === "option") && (
@@ -820,15 +838,12 @@ export function EditMaterialModal({
                 className={errors.quantityPerBin ? "border-destructive" : ""}
                 disabled={isViewer}
               />
-              {errors.quantityPerBin && (
-                <p className="text-xs text-destructive mt-1">
-                  {errors.quantityPerBin}
-                </p>
-              )}
+               {}
             </div>
           )}
         </div>
-
+        
+        {}
         {errors.general && (
           <div className="col-span-4 my-2 text-sm text-destructive text-center p-2 bg-destructive/10 rounded-md">
             <p>{errors.general}</p>
@@ -848,7 +863,8 @@ export function EditMaterialModal({
           </div>
         )}
 
-        {bins.length > 0 && (
+        {}
+        {bins.length > 0 && productType !== "special" && (
           <div className="col-span-4 border-t pt-4 mt-4">
             <Label className="text-base font-medium">Stok per Bin (SOH)</Label>
             <p className="text-sm text-muted-foreground mb-4">
@@ -927,7 +943,6 @@ export function EditMaterialModal({
                       disabled={isViewer}
                     />
                   )}
-
                   {errors[`bin_${index}`] && (
                     <p className="text-xs text-destructive">
                       {errors[`bin_${index}`]}
@@ -939,6 +954,7 @@ export function EditMaterialModal({
           </div>
         )}
 
+        {}
         <div className="col-span-4 rounded-md border p-4 my-4">
           <Label className="text-xs text-muted-foreground">
             Preview Konfigurasi Bin
@@ -981,24 +997,28 @@ export function EditMaterialModal({
             Qty (Final):{" "}
             <span className="font-bold text-primary">{nMinBinQty}</span>
           </p>
+          {productType !== "special" && (
+            <p className="text-xs text-muted-foreground mb-3">
+              Replenishment:{" "}
+              <span className="font-bold text-primary">{replenishment}</span> bin
+              (SOH: {nCurrentQuantity})
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mb-3">
-            Replenishment:{" "}
-            <span className="font-bold text-primary">{replenishment}</span> bin
-            (SOH: {nCurrentQuantity})
-          </p>
-          <p className="text-xs text-muted-foreground mb-3">
-            {productType === "kanban" ? "Setara" : "Total"}{" "}
-            <span className="font-bold text-primary">{nTotalBinsMemo}</span> bin
-            , masing-masing{" "}
-            <span className="font-bold text-primary">
-              {nQuantityPerBinMemo}x
-            </span>{" "}
-            pcs
+            {productType === "special" ? "No Bin System (Pack based)" : (
+                <>
+                {productType === "kanban" ? "Setara" : "Total"}{" "}
+                <span className="font-bold text-primary">{nTotalBinsMemo}</span> bin
+                , masing-masing{" "}
+                <span className="font-bold text-primary">
+                {nQuantityPerBinMemo}x
+                </span>{" "}
+                pcs
+                </>
+            )}
           </p>
           <BinPreview material={previewMaterial} />
         </div>
-
-        {}
         
       </div>
 

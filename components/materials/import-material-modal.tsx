@@ -31,7 +31,7 @@ interface MaterialPayload {
   minBinQty?: number;
   vendorCode?: string;
   currentQuantity?: number; 
-  productType?: "kanban" | "consumable" | "option";
+  productType?: "kanban" | "consumable" | "option" | "special";
   bins?: Partial<MaterialBin>[];
   isSmartImport?: boolean;
 }
@@ -66,7 +66,8 @@ export function ImportMaterialModal({
   const [progress, setProgress] = useState("");
   const [uploadPercent, setUploadPercent] = useState(0);
   
-  const [activeTab, setActiveTab] = useState<"kanban" | "consumable" | "option">("kanban");
+  
+  const [activeTab, setActiveTab] = useState<"kanban" | "consumable" | "option" | "special">("kanban");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +93,7 @@ export function ImportMaterialModal({
   }
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as "kanban" | "consumable" | "option");
+    setActiveTab(value as "kanban" | "consumable" | "option" | "special");
     resetState();
   };
 
@@ -130,6 +131,9 @@ export function ImportMaterialModal({
       headers.push("Pack Qty", "Total Bins", "Qty Per Bin");
     } else if (activeTab === "option") {
       headers.push("Total Bins", "Qty Per Bin");
+    } else if (activeTab === "special") {
+      
+      headers.push("Pack Qty", "Max Qty");
     }
 
     const csvContent = headers.join(",");
@@ -220,7 +224,19 @@ export function ImportMaterialModal({
                 minBinQty = valPack;
                 currentQty = hasField("Current Qty") ? valCurrent : undefined;
 
+             } else if (activeTab === "special") {
+                
+                
+                
+                packQty = valPack > 0 ? valPack : 1;
+                maxBinQty = valMax > 0 ? valMax : packQty; 
+                minBinQty = packQty;
+                
+                generatedBins = []; 
+                currentQty = hasField("Current Qty") ? valCurrent : undefined;
+
              } else {
+                
                 let safePack = 1;
                 if (activeTab === "consumable") safePack = hasField("Pack Qty") ? valPack : 1;
                 const totalCap = valTotalBins * valQtyPerBin;
@@ -286,12 +302,8 @@ export function ImportMaterialModal({
     
     if (field === "packQuantity" || field === "maxBinQty") {
       const num = parseInt(value);
-      
-      
       (item as any)[field] = isNaN(num) ? 0 : num; 
     } else {
-      
-      
       (item as any)[field] = value;
     }
 
@@ -329,6 +341,23 @@ export function ImportMaterialModal({
             maxBinQty: roundedMax,
             minBinQty: packQty,
             currentQuantity: currentQty,
+            materialDescription: trimmed["Deskripsi"],
+            lokasi: trimmed["Lokasi"],
+            vendorCode: trimmed["Vendor"],
+        };
+    } else if (activeTab === "special") {
+        
+        const packQty = val2; 
+        const maxQty = val1;  
+        newPayload = {
+            material: row.materialCode,
+            isSmartImport: true,
+            productType: "special",
+            packQuantity: packQty,
+            maxBinQty: maxQty,
+            minBinQty: packQty,
+            currentQuantity: currentQty,
+            bins: [],
             materialDescription: trimmed["Deskripsi"],
             lokasi: trimmed["Lokasi"],
             vendorCode: trimmed["Vendor"],
@@ -497,10 +526,11 @@ export function ImportMaterialModal({
         {!isPreviewing ? (
             
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="kanban">Kanban</TabsTrigger>
                 <TabsTrigger value="consumable">Consumable</TabsTrigger>
                 <TabsTrigger value="option">Option</TabsTrigger>
+                <TabsTrigger value="special">Special Consumable</TabsTrigger>
             </TabsList>
 
             <div className="mt-4 space-y-4">
@@ -522,6 +552,7 @@ export function ImportMaterialModal({
                 <TabsContent value="kanban" className="mt-0"><UploadArea /></TabsContent>
                 <TabsContent value="consumable" className="mt-0"><UploadArea /></TabsContent>
                 <TabsContent value="option" className="mt-0"><UploadArea /></TabsContent>
+                <TabsContent value="special" className="mt-0"><UploadArea /></TabsContent>
 
                 {error && (
                 <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md flex items-center gap-2 border border-red-200">
@@ -658,8 +689,8 @@ export function ImportMaterialModal({
                 <thead>
                 <tr className="bg-red-100 text-left">
                     <th className="p-1">Kode</th>
-                    <th className="p-1">{activeTab === "kanban" ? "Max Qty" : "Total Bins"}</th>
-                    <th className="p-1">{activeTab === "kanban" ? "Pack Qty" : "Qty/Bin"}</th>
+                    <th className="p-1">{activeTab === "kanban" || activeTab === "special" ? "Max Qty" : "Total Bins"}</th>
+                    <th className="p-1">{activeTab === "kanban" || activeTab === "special" ? "Pack Qty" : "Qty/Bin"}</th>
                     <th className="p-1">Pesan</th>
                     <th className="p-1 text-center">Aksi</th>
                 </tr>

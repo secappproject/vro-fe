@@ -19,14 +19,15 @@ export function BinPreview({ material }: BinPreviewProps) {
     id,
   } = material;
 
-  
-  
   let displayBins: MaterialBin[] = bins || [];
 
-  
+  // =====================================================================
+  // GENERATE VIRTUAL SEGMENTS (Untuk Kanban & Special)
+  // =====================================================================
+  // Logic ini akan membuat kotak-kotak virtual berdasarkan Max / Pack
   if (
     (!displayBins || displayBins.length === 0) &&
-    productType === "kanban" &&
+    (productType === "kanban" || productType === "special") && 
     packQuantity > 0 &&
     maxBinQty > 0
   ) {
@@ -38,6 +39,7 @@ export function BinPreview({ material }: BinPreviewProps) {
       const maxStock = packQuantity;
       let currentStock = 0;
 
+      // Distribusi stok ke kotak-kotak (virtual bins/packs)
       if (remainingStock >= maxStock) {
         currentStock = maxStock;
         remainingStock -= maxStock;
@@ -47,7 +49,7 @@ export function BinPreview({ material }: BinPreviewProps) {
       }
 
       displayBins.push({
-        id: i, 
+        id: i,
         materialId: id,
         binSequenceId: i,
         maxBinStock: maxStock,
@@ -56,12 +58,14 @@ export function BinPreview({ material }: BinPreviewProps) {
     }
   }
 
-  
+  // Jika setelah logic di atas displayBins masih kosong, return skeleton/empty
   if (!displayBins || displayBins.length === 0) {
     return <BinPreviewSkeleton />;
   }
-
   
+  // =====================================================================
+  // LOGIKA WARNA (Traffic Light System)
+  // =====================================================================
   const shortagePoint = Math.ceil(maxBinQty * 0.3);
   const preshortagePoint = Math.ceil(maxBinQty * 0.6);
 
@@ -74,7 +78,7 @@ export function BinPreview({ material }: BinPreviewProps) {
 
   return (
     <div className="w-full min-w-[150px]">
-      {}
+      {/* HEADER: Info Total Stok */}
       <div className="flex justify-between text-xs font-mono mb-1">
         <span
           className={
@@ -85,11 +89,15 @@ export function BinPreview({ material }: BinPreviewProps) {
         >
           Stok: {currentQuantity} / {maxBinQty}
         </span>
-
-        <span className="text-gray-500">({displayBins.length} bin)</span>
+        <span className="text-gray-500">
+            {/* Tampilkan info jumlah Pack atau Bin */}
+            {productType === 'special' 
+                ? `(${displayBins.length} Pack)` 
+                : `(${displayBins.length} Bin)`}
+        </span>
       </div>
 
-      {}
+      {/* VISUAL BAR (KOTAK-KOTAK) */}
       <div className="flex space-x-1 h-3">
         {displayBins.map((bin) => {
           const percent =
@@ -101,7 +109,7 @@ export function BinPreview({ material }: BinPreviewProps) {
             <div
               key={bin.binSequenceId}
               className="relative flex-1 h-full bg-gray-200 rounded-sm overflow-hidden border border-gray-300/40"
-              title={`Bin ${bin.binSequenceId}: ${bin.currentBinStock}/${bin.maxBinStock}`}
+              title={`${productType === 'special' ? 'Pack' : 'Bin'} ${bin.binSequenceId}: ${bin.currentBinStock}/${bin.maxBinStock}`}
             >
               {percent > 0 && (
                 <div
@@ -114,22 +122,24 @@ export function BinPreview({ material }: BinPreviewProps) {
         })}
       </div>
 
-      {}
+      {/* FOOTER: LABEL NOMOR */}
       <div className="flex space-x-1 mt-1">
         {displayBins.map((bin) => {
           const isFilled = bin.currentBinStock > 0;
-
           return (
             <div
               key={bin.binSequenceId}
               className="flex-1 text-center font-mono text-[10px] leading-tight"
             >
+              {/* Ubah Label: P untuk Pack (Special), B untuk Bin (Lainnya) */}
               <div className="text-gray-500 text-[9px]">
-                B{bin.binSequenceId}
+                {productType === "special" ? "P" : "B"}{bin.binSequenceId}
               </div>
+              
               <span
                 className={isFilled ? "font-bold text-black" : "text-gray-300"}
               >
+                {/* Tampilkan angka stok */}
                 {bin.currentBinStock}
               </span>
             </div>

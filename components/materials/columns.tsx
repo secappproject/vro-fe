@@ -179,6 +179,11 @@ export const getMaterialColumns = (
         bins,
       } = row;
 
+      
+      if (productType === "special") {
+         return -1; 
+      }
+
       if (productType === "kanban") {
         if (packQuantity <= 0 || maxBinQty <= 0) return null;
         const totalBins = Math.ceil(maxBinQty / packQuantity);
@@ -195,8 +200,14 @@ export const getMaterialColumns = (
     },
     cell: ({ row }) => {
       const value = row.getValue("replenishment");
+      const type = row.original.productType;
 
-      if (typeof value !== "number") {
+      
+      if (type === "special") {
+         return <span className="text-muted-foreground text-xs font-mono">Pack Mode</span>;
+      }
+
+      if (typeof value !== "number" || value < 0) {
         return <span className="text-muted-foreground">-</span>;
       }
 

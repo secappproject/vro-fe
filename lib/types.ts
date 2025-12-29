@@ -1,3 +1,5 @@
+
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -60,7 +62,7 @@ export interface Material {
   pic?: string;
   vendorStock?: number;
   openPO?: number;
-  productType: 'kanban' | 'consumable' | 'option' | 'block'; 
+  productType: 'kanban' | 'consumable' | 'option' | 'block' | 'special'; 
   previousProductType?: string;
   bins?: MaterialBin[]; 
 }
@@ -70,12 +72,14 @@ export interface MaterialStatusResponse {
   maxBinQty: number;
   minBinQty: number;
   currentQuantity: number;
-  productType: "kanban" | "consumable" | "option";
+  
+  productType: "kanban" | "consumable" | "option" | "block" | "special";
   quantityPerBin: number; 
   bins: MaterialBin[] | null; 
   vendorStock: number;
   openPO: number;
 }
+
 export interface GoSqlNullInt {
   Int64: number;
   Valid: boolean;
@@ -85,11 +89,13 @@ export interface GoSqlNullString {
   String: string;
   Valid: boolean;
 }
+
 export interface StockMovement {
   id: number;
   materialId: number;
   materialCode: string;
-  movementType: "Edit" | "Scan IN" | "Scan OUT" | "Edit Vendor Stock";  
+  
+  movementType: "Edit" | "Scan IN" | "Scan OUT" | "Edit Vendor Stock" | "Scan In (Special)" | "Scan Out (Special)" | "Edit (Special)";  
   quantityChange: number;
   oldQuantity: number;
   newQuantity: number;
@@ -98,8 +104,6 @@ export interface StockMovement {
   binSequenceId: GoSqlNullInt;
   timestamp: string;
 }
-
-
 
 export const useAuthStore = create<UserState>()(
   persist(
@@ -129,7 +133,6 @@ export const useAuthStore = create<UserState>()(
         lastActivity: 0,
       }),
 
-      
       updateActivity: () => set({ lastActivity: Date.now() }),
     }),
     {
