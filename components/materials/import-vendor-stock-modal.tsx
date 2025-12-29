@@ -12,10 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/lib/types";
 import Papa from "papaparse";
-import { FileSpreadsheet, UploadCloud, X, Download } from "lucide-react";
+import { FileSpreadsheet, UploadCloud, X, Download, Check, Square } from "lucide-react";
 
 interface ImportVendorStockModalProps {
   setIsOpen: (open: boolean) => void;
@@ -24,9 +24,8 @@ interface ImportVendorStockModalProps {
 
 interface VendorStockPayload {
   materialCode: string;
-  vendorStock: number;
-  openPO: number;
-  
+  vendorStock?: number; 
+  openPO?: number;      
   updateType?: "stock" | "open_po" | "both"; 
 }
 
@@ -51,11 +50,13 @@ export function ImportVendorStockModal({
   const [error, setError] = useState<string | null>(null);
   const [validPayloads, setValidPayloads] = useState<VendorStockPayload[]>([]);
   
+  
+  const [overwriteBlank, setOverwriteBlank] = useState(false);
+  
   const authRole = useAuthStore((state) => state.role);
   const authCompany = useAuthStore((state) => state.companyName);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  
   const handleTabChange = (value: string) => {
     setActiveTab(value as "stock" | "openpo");
     handleRemoveFile();
@@ -92,7 +93,6 @@ export function ImportVendorStockModal({
   };
   
   const handleDownloadTemplate = () => {
-    
     let headers = ["Material Code"];
     let dummyData = "\nCONTOH-MAT-01";
 
@@ -129,7 +129,6 @@ export function ImportVendorStockModal({
         const data = results.data as Record<string, string>[];
         const fields = (results.meta.fields || []).map((f) => f.trim());
         
-        
         const requiredHeaders = ["Material Code"];
         if (activeTab === "stock") {
             requiredHeaders.push("Vendor Stock");
@@ -152,43 +151,75 @@ export function ImportVendorStockModal({
            const code = row["Material Code"]?.trim();
            if (!code) return; 
 
-           let vStock = 0;
-           let openPO = 0;
-
+           
+           
+           
+           
            
            if (activeTab === "stock") {
-               const rawStock = row["Vendor Stock"]?.replace(/[,.]/g, "") || "0";
-               vStock = parseInt(rawStock, 10);
-               
-               
-               openPO = 0; 
-               
-               if (isNaN(vStock)) {
-                   errorRows++;
-                   return;
-               }
-           } else {
-               const rawPO = row["Open PO"]?.replace(/[,.]/g, "") || "0";
-               openPO = parseInt(rawPO, 10);
-               vStock = 0;
+               const rawStock = row["Vendor Stock"]?.trim();
+               let vStock: number | undefined;
 
-               if (isNaN(openPO)) {
-                   errorRows++;
-                   return;
+               if (!rawStock) {
+                   
+                   if (overwriteBlank) {
+                       vStock = 0;
+                   } else {
+                       vStock = undefined; 
+                   }
+               } else {
+                   
+                   const parsed = parseInt(rawStock.replace(/[,.]/g, ""), 10);
+                   if (isNaN(parsed)) {
+                       errorRows++;
+                       return;
+                   }
+                   vStock = parsed;
+               }
+
+               
+               if (vStock !== undefined) {
+                   payloads.push({
+                       materialCode: code,
+                       vendorStock: vStock,
+                       
+                   });
+               }
+
+           } else {
+               
+               const rawPO = row["Open PO"]?.trim();
+               let openPO: number | undefined;
+
+               if (!rawPO) {
+                   if (overwriteBlank) {
+                       openPO = 0;
+                   } else {
+                       openPO = undefined;
+                   }
+               } else {
+                   const parsed = parseInt(rawPO.replace(/[,.]/g, ""), 10);
+                   if (isNaN(parsed)) {
+                       errorRows++;
+                       return;
+                   }
+                   openPO = parsed;
+               }
+
+               if (openPO !== undefined) {
+                   payloads.push({
+                       materialCode: code,
+                       
+                       openPO: openPO,
+                   });
                }
            }
-
-           payloads.push({
-             materialCode: code,
-             vendorStock: vStock,
-             openPO: openPO,
-             
-             
-           });
         });
 
         if (payloads.length === 0) {
-           setError("Tidak ada data valid yang ditemukan dalam file.");
+           setError(overwriteBlank 
+             ? "Tidak ada data valid yang ditemukan." 
+             : "Tidak ada data. (Mode Overwrite OFF: Sel kosong diabaikan).");
         } else if (errorRows > 0) {
            alert(`Peringatan: Ada ${errorRows} baris dengan format angka yang salah dan akan dilewati.`);
         }
@@ -211,8 +242,6 @@ export function ImportVendorStockModal({
     setProgress("Sedang mengupdate database...");
 
     try {
-      
-      
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/bulk-stock`, {
         method: "POST",
         headers: {
@@ -262,9 +291,32 @@ export function ImportVendorStockModal({
           <TabsTrigger value="openpo">Open PO</TabsTrigger>
         </TabsList>
 
-        {}
         <div className="grid gap-4 py-4 mt-2">
           
+          {}
+          <div className="flex items-center space-x-2 border p-3 rounded-md bg-gray-50 dark:bg-gray-900/50">
+            <button 
+                type="button"
+                onClick={() => setOverwriteBlank(!overwriteBlank)}
+                className="flex items-center justify-center w-5 h-5 text-primary focus:outline-none"
+            >
+                {overwriteBlank ? (
+                    <div className="flex items-center justify-center w-5 h-5 text-white bg-[#008A15] rounded-sm">
+                        <Check className="w-4 h-4" />
+                    </div>
+                ) : (
+                    <Square className="w-5 h-5 text-gray-400" />
+                )}
+            </button>
+            <div className="space-y-1 cursor-pointer" onClick={() => setOverwriteBlank(!overwriteBlank)}>
+                <Label className="cursor-pointer font-regular">Timpa data kosong (Overwrite)</Label>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                    Jika dicentang: Sel kosong di CSV akan menjadi <b>0</b>.<br/>
+                    Jika tidak: Sel kosong diabaikan (Data lama tetap ada).
+                </p>
+            </div>
+          </div>
+
           <Button
             type="button"
             variant="outline"
@@ -332,14 +384,19 @@ export function ImportVendorStockModal({
           )}
 
           {!error && validPayloads.length > 0 && (
-            <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex items-center gap-2">
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>
-                Siap update <b>{validPayloads.length}</b> material 
-                <span className="text-xs ml-1 opacity-75">
-                  ({activeTab === "stock" ? "Vendor Stock" : "Open PO"})
+            <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>
+                    Siap update <b>{validPayloads.length}</b> material 
+                    <span className="text-xs ml-1 opacity-75">
+                    ({activeTab === "stock" ? "Vendor Stock" : "Open PO"})
+                    </span>
                 </span>
-              </span>
+              </div>
+              <div className="text-[10px] ml-6 opacity-80">
+                 Mode Overwrite: {overwriteBlank ? "ON (Menganggap blank menjadi 0)" : "OFF (Kosong = Skip)"}
+              </div>
             </div>
           )}
 
