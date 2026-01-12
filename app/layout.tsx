@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation"
 import AuthProvider from "@/components/login/auth-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { IdleLogoutHandler } from "@/components/ui/idle-logout";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="h-screen overflow-hidden">
         <AuthProvider>
+          <IdleLogoutHandler />
           {isLoginPage ? (
             <main className="min-h-screen bg-white dark:bg-gray-900">
               {children}
