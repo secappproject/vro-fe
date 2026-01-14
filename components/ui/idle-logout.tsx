@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/lib/types"; 
 import { useRouter } from "next/navigation";
 
-const IDLE_TIMEOUT = 15 * 60 * 1000; 
+const IDLE_TIMEOUT = 60 * 60 * 1000; 
 const CHECK_INTERVAL = 5000;       
 const THROTTLE_TIME = 2000;        
 

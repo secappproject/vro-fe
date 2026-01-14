@@ -14,6 +14,7 @@ import { useAuthStore } from "@/lib/types";
 import { EyeOff, Eye } from "lucide-react";
 import { LoginBackgroundSlider } from "./login-background-slide";
 import { LoginFormSkeleton } from "./login-skeleton";
+import { toast } from "sonner";
 
 export function LoginForm() {
   const [username, setUsername] = useState("");
@@ -66,6 +67,11 @@ export function LoginForm() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMvpClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    alert("Maaf, fitur MVP Monitoring sedang dalam pengembangan dan belum tersedia.");
   };
 
   return (
@@ -180,6 +186,13 @@ export function LoginForm() {
                   >
                     Trisutorpro
                   </a>
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={handleMvpClick}
+                >
+                  MVP Monitoring
                 </Button>
               </div>
             </div>
