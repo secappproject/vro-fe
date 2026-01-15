@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="h-screen overflow-hidden">
         <AuthProvider>
-          <IdleLogoutHandler />
+          {/* <IdleLogoutHandler /> */}
           {isLoginPage ? (
             <main className="min-h-screen bg-white dark:bg-gray-900">
               {children}
