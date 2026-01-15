@@ -11,6 +11,12 @@ type MaterialUpdateHandler = (updatedMaterial: Material) => void;
 type MaterialDeleteHandler = (materialId: number) => void;
 
 
+const formatNumber = (value: unknown): string => {
+  const num = Number(value);
+  if (isNaN(num)) return "0";
+  return new Intl.NumberFormat("id-ID").format(num);
+};
+
 const exactFilterFn = (
   row: Row<Material>,
   columnId: string,
@@ -24,13 +30,11 @@ const exactFilterFn = (
   if (rowValue === null || rowValue === undefined) {
     cellValue = "(Kosong)";
   } else {
-    
     cellValue = String(rowValue);
   }
 
   return filterValue.includes(cellValue);
 };
-
 
 export const getMaterialColumns = (
   onMaterialUpdated: MaterialUpdateHandler,
@@ -102,7 +106,8 @@ export const getMaterialColumns = (
       <DataTableColumnHeader column={column} title="SoH" />
     ),
     cell: ({ row }) => {
-      return <span>{row.getValue("soh")}</span>;
+      
+      return <span>{formatNumber(row.getValue("soh"))}</span>;
     },
     enableSorting: true,
     enableColumnFilter: true,
@@ -115,6 +120,10 @@ export const getMaterialColumns = (
       <DataTableColumnHeader column={column} title="Min Qty" />
     ),
     id: "minBinQty",
+    cell: ({ row }) => {
+      
+      return <span>{formatNumber(row.getValue("minBinQty"))}</span>;
+    },
     enableColumnFilter: true,
     enableHiding: true,
     filterFn: exactFilterFn,
@@ -125,6 +134,10 @@ export const getMaterialColumns = (
       <DataTableColumnHeader column={column} title="Pack Qty" />
     ),
     id: "packQuantity",
+    cell: ({ row }) => {
+      
+      return <span>{formatNumber(row.getValue("packQuantity"))}</span>;
+    },
     enableColumnFilter: true,
     enableHiding: true,
     filterFn: exactFilterFn,
@@ -135,6 +148,10 @@ export const getMaterialColumns = (
       <DataTableColumnHeader column={column} title="Max Qty" />
     ),
     id: "maxBinQty",
+    cell: ({ row }) => {
+      
+      return <span>{formatNumber(row.getValue("maxBinQty"))}</span>;
+    },
     enableColumnFilter: true,
     enableHiding: true,
     filterFn: exactFilterFn,
@@ -146,13 +163,16 @@ export const getMaterialColumns = (
     ),
     accessorFn: (row) =>
       row.packQuantity > 0 ? Math.ceil(row.maxBinQty / row.packQuantity) : 0,
+    cell: ({ row }) => {
+       
+       return <span>{formatNumber(row.getValue("totalBins"))}</span>;
+    },
     enableColumnFilter: true,
     enableHiding: true,
     filterFn: exactFilterFn,
   },
   {
-    
-    id: "currentQuantity", 
+    id: "currentQuantity",
     accessorFn: (row) => row.currentQuantity,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Stok Bin" />
@@ -160,10 +180,10 @@ export const getMaterialColumns = (
     cell: ({ row }) => {
       return <BinPreview material={row.original as Material} />;
     },
-    enableSorting: true, 
-    enableColumnFilter: true, 
+    enableSorting: true,
+    enableColumnFilter: true,
     enableHiding: false,
-    filterFn: exactFilterFn, 
+    filterFn: exactFilterFn,
   },
   {
     id: "replenishment",
@@ -179,16 +199,13 @@ export const getMaterialColumns = (
         bins,
       } = row;
 
-      
-      if (productType === "special") {
-         return -1; 
-      }
+      if (productType === "kanban" || productType === "special") {
+        if (packQuantity <= 0 || maxBinQty <= 0) return 0;
 
-      if (productType === "kanban") {
-        if (packQuantity <= 0 || maxBinQty <= 0) return null;
         const totalBins = Math.ceil(maxBinQty / packQuantity);
         const occupiedBins = Math.ceil(currentQuantity / packQuantity);
-        return totalBins - occupiedBins;
+
+        return Math.max(0, totalBins - occupiedBins);
       }
 
       if (!bins) {
@@ -202,16 +219,14 @@ export const getMaterialColumns = (
       const value = row.getValue("replenishment");
       const type = row.original.productType;
 
-      
-      if (type === "special") {
-         return <span className="text-muted-foreground text-xs font-mono">Pack Mode</span>;
-      }
-
       if (typeof value !== "number" || value < 0) {
         return <span className="text-muted-foreground">-</span>;
       }
 
-      return <span className="font-medium">{value} bin</span>;
+      const label = type === "special" ? "Pack" : "Bin";
+
+      
+      return <span className="font-medium">{formatNumber(value)} {label}</span>;
     },
     enableSorting: true,
     filterFn: exactFilterFn,
@@ -286,16 +301,19 @@ export const getMaterialColumns = (
     ),
     cell: ({ row }) => {
       const stock = (row.getValue("vendorStock") as number | null) ?? 0;
-      
-      const { productType, maxBinQty, packQuantity, bins, currentQuantity } = row.original;
+
+      const { productType, maxBinQty, packQuantity, bins, currentQuantity } =
+        row.original;
+
       let totalBins = 0;
-      if (productType === "kanban") {
-          if (packQuantity > 0) totalBins = Math.ceil(maxBinQty / packQuantity);
+      if (productType === "kanban" || productType === "special") {
+        if (packQuantity > 0) totalBins = Math.ceil(maxBinQty / packQuantity);
       } else if (bins) {
-          totalBins = bins.length;
+        totalBins = bins.length;
       }
+
       let replenishment: number | null = null;
-      if (productType === "kanban") {
+      if (productType === "kanban" || productType === "special") {
         if (packQuantity <= 0 || maxBinQty <= 0) {
           replenishment = null;
         } else {
@@ -304,9 +322,9 @@ export const getMaterialColumns = (
         }
       } else {
         if (!bins) {
-          replenishment = 0; 
+          replenishment = 0;
         } else {
-          replenishment = bins.filter(bin => bin.currentBinStock === 0).length;
+          replenishment = bins.filter((bin) => bin.currentBinStock === 0).length;
         }
       }
 
@@ -314,7 +332,7 @@ export const getMaterialColumns = (
       if (replenishment !== null && totalBins > 0) {
         const halfTotal = totalBins * 0.5;
         if (replenishment <= 1) {
-          colorClass = "text-red-600 font-medium"; 
+          colorClass = "text-red-600 font-medium";
         } else if (replenishment > halfTotal) {
           colorClass = "text-green-600 font-medium";
         } else {
@@ -322,7 +340,8 @@ export const getMaterialColumns = (
         }
       }
 
-      return <span className={colorClass}>{stock}</span>;
+      
+      return <span className={colorClass}>{formatNumber(stock)}</span>;
     },
     enableSorting: true,
     filterFn: exactFilterFn,
@@ -334,7 +353,8 @@ export const getMaterialColumns = (
     ),
     cell: ({ row }) => {
       const openPO = (row.getValue("openPO") as number | null) ?? 0;
-      return <span>{openPO}</span>;
+      
+      return <span>{formatNumber(openPO)}</span>;
     },
     enableSorting: true,
     enableColumnFilter: true,

@@ -116,6 +116,7 @@ export function EditMaterialModal({
 
   const isViewer = authRole === "Viewer";
   const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
+  const isVendor = authRole === "Vendor";
 
   useEffect(() => {
     const fetchVendors = async () => {
@@ -626,6 +627,46 @@ export function EditMaterialModal({
 
         {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
+          <Label htmlFor="vendorStock" className="text-left pt-2">
+            Vendor Stock
+          </Label>
+          <div className="col-span-3">
+            <Input
+              id="vendorStock"
+              type="number"
+              value={vendorStock}
+              onChange={(e) => {
+                setVendorStock(e.target.value);
+                clearError("vendorStock");
+              }}
+              placeholder="Stok vendor"
+              className={
+                errors.vendorStock
+                  ? "border-destructive"
+                  : stockHasChanged &&
+                    nVendorStock !== (material.vendorStock ?? 0)
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+              }
+              disabled={isViewer || isVendor}
+
+            />
+            {errors.vendorStock && (
+              <p className="text-xs text-destructive mt-1">
+                {errors.vendorStock}
+              </p>
+            )}
+            {stockHasChanged &&
+              nVendorStock !== (material.vendorStock ?? 0) && (
+                <p className="text-xs text-destructive mt-1">
+                  Vendor Stock berubah. PIC wajib diisi.
+                </p>
+              )}
+          </div>
+        </div>
+
+        {}
+        <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="pic" className="text-left pt-2">
             PIC
           </Label>
@@ -653,44 +694,7 @@ export function EditMaterialModal({
           </div>
         </div>
 
-        {}
-        <div className="grid grid-cols-4 items-start gap-4 mb-4">
-          <Label htmlFor="vendorStock" className="text-left pt-2">
-            Vendor Stock
-          </Label>
-          <div className="col-span-3">
-            <Input
-              id="vendorStock"
-              type="number"
-              value={vendorStock}
-              onChange={(e) => {
-                setVendorStock(e.target.value);
-                clearError("vendorStock");
-              }}
-              placeholder="Stok vendor"
-              className={
-                errors.vendorStock
-                  ? "border-destructive"
-                  : stockHasChanged &&
-                    nVendorStock !== (material.vendorStock ?? 0)
-                  ? "border-destructive focus-visible:ring-destructive"
-                  : ""
-              }
-              disabled={isViewer}
-            />
-            {errors.vendorStock && (
-              <p className="text-xs text-destructive mt-1">
-                {errors.vendorStock}
-              </p>
-            )}
-            {stockHasChanged &&
-              nVendorStock !== (material.vendorStock ?? 0) && (
-                <p className="text-xs text-destructive mt-1">
-                  Vendor Stock berubah. PIC wajib diisi.
-                </p>
-              )}
-          </div>
-        </div>
+       
 
         {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
