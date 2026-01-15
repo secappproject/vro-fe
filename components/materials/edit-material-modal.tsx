@@ -614,7 +614,8 @@ export function EditMaterialModal({
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
-                disabled={isViewer}
+                
+              disabled={isViewer || isVendor}
               />
               {errors.currentQuantity && (
                 <p className="text-xs text-destructive mt-1">
@@ -648,7 +649,7 @@ export function EditMaterialModal({
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
-              disabled={isViewer || isVendor}
+              disabled={isViewer}
 
             />
             {errors.vendorStock && (
@@ -686,7 +687,7 @@ export function EditMaterialModal({
                   : ""
               }
               placeholder="Nama Anda (Wajib jika stok/PO berubah)"
-              disabled={isViewer}
+              disabled={isViewer || isVendor}
             />
             {errors.pic && (
               <p className="text-xs text-destructive mt-1">{errors.pic}</p>
@@ -708,7 +709,7 @@ export function EditMaterialModal({
                 setVendorCode(value);
                 clearError("vendorCode");
               }}
-              disabled={isViewer}
+              disabled={isViewer || isVendor}
             >
               <SelectTrigger
                 className={errors.vendorCode ? "border-destructive" : ""}

@@ -741,6 +741,7 @@ export function MaterialDataTable<TData extends Material, TValue>({
                       onCheckedChange={(value) =>
                         column.toggleVisibility(!!value)
                       }
+                      onSelect={(event) => event.preventDefault()} 
                     >
                       {column.id
                         .replace(/([A-Z])/g, " $1")
