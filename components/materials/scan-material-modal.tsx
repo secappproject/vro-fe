@@ -30,9 +30,9 @@ const formatBinId = (id: number | null): string => {
   return id.toString().padStart(2, "0");
 };
 
-
-
-
+// ============================================================================
+// BIN PREVIEW COMPONENT
+// ============================================================================
 
 interface BinPreviewProps {
   baseData: MaterialStatusResponse;
@@ -52,23 +52,23 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
   else if (current <= preshortagePoint) overallColorClass = "bg-yellow-500";
   if (current < 0 || current > maxBinQty) overallColorClass = "bg-destructive";
 
-  
+  // --- LOGIC GENERATE KOTAK (Pack atau Bin) ---
   let totalSegments = 0;
   let qtyPerSegment = 0;
 
-  
+  // Cek apakah Special ATAU Kanban
   if (productType === 'special') {
-      
+      // Logic Special: Hitung jumlah Pack virtual
       if (packQuantity <= 0) return <BinPreviewSkeleton />;
       qtyPerSegment = packQuantity;
       totalSegments = Math.floor(maxBinQty / packQuantity);
   } else {
-      
+      // Logic Kanban/Option (Bin Fisik)
       if (baseData.bins && baseData.bins.length > 0) {
           totalSegments = baseData.bins.length;
           qtyPerSegment = baseData.bins[0].maxBinStock;
       } else {
-          
+          // Fallback jika data bin belum ada
           if (packQuantity <= 0) return <BinPreviewSkeleton />;
           qtyPerSegment = quantityPerBin || packQuantity;
           totalSegments = Math.floor(maxBinQty / packQuantity);
@@ -84,18 +84,18 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
 
   return (
     <div className="w-full min-w-[150px]">
-      {}
+      {/* HEADER */}
       <div className="flex justify-between text-xs font-mono mb-1">
         <span className={current < 0 || current > maxBinQty ? "text-destructive font-bold" : ""}>
           Stok: {current} / {maxBinQty}
         </span>
         <span className="text-gray-500">
-            {}
+            {/* Tampilkan totalSegments + Pack/Bin */}
             {isSpecial ? `(${totalSegments} Pack)` : `(${totalSegments} Bin)`}
         </span>
       </div>
 
-      {}
+      {/* VISUAL BAR (KOTAK-KOTAK) */}
       <div className="flex space-x-1 h-3">
         {binIds.map((binId) => {
           const binStock = simulatedBins.get(binId) || 0;
@@ -120,7 +120,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
         })}
       </div>
 
-      {}
+      {/* FOOTER LABEL (P... atau B...) */}
       <div className="flex space-x-1 mt-1">
         {binIds.map((binId) => {
           const currentBinStock = simulatedBins.get(binId) || 0;
@@ -129,7 +129,7 @@ function BinPreview({ baseData, simulatedBins, simulatedTotal }: BinPreviewProps
           return (
             <div key={binId} className="flex-1 text-center font-mono text-[10px] leading-tight">
               <div className="text-gray-500 text-[9px]">
-                  {}
+                  {/* Label P untuk Special, B untuk lainnya */}
                   {isSpecial ? 'P' : 'B'}{formatBinId(binId)}
               </div>
               <span className={isFilled ? "font-bold text-black" : "text-gray-300"}>
@@ -160,9 +160,9 @@ function BinPreviewSkeleton() {
   );
 }
 
-
-
-
+// ============================================================================
+// PARSING LOGIC
+// ============================================================================
 
 type ScanFormat = "IN" | "OUT_DEFAULT" | "OUT_EXPLICIT";
 
@@ -206,7 +206,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   const materialCode = parts[0];
   const movementStr = parts[1].toUpperCase();
 
-  
+  // VALIDASI MOVEMENT
   if (movementStr !== "IN" && movementStr !== "OUT") {
       return {
         raw: code,
@@ -220,13 +220,13 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   }
   const movement = movementStr as "IN" | "OUT";
 
-  
-  
+  // KASUS 2 SEGMEN: MAT_IN atau MAT_OUT
+  // Default Bin = 1
   if (len === 2) {
       return {
           raw: code,
           materialCode,
-          binId: 1, 
+          binId: 1, // Default ke Bin 01
           movement,
           quantity: null,
           format: movement === "IN" ? "IN" : "OUT_DEFAULT",
@@ -234,7 +234,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
       };
   }
 
-  
+  // KASUS 3+ SEGMEN: MAT_IN_BIN atau MAT_OUT_BIN[_QTY]
   const binIdStr = parts[2];
   const binId = parseInt(binIdStr, 10);
 
@@ -251,7 +251,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   }
 
   if (movement === "IN") {
-      
+      // IN tidak butuh quantity
       return {
         raw: code,
         materialCode,
@@ -265,7 +265,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
 
   if (movement === "OUT") {
     if (len === 3) {
-      
+      // MAT_OUT_BIN
       return {
         raw: code,
         materialCode,
@@ -277,7 +277,7 @@ const parseRawScan = (rawCode: string): ParsedScan => {
       };
     }
     if (len === 4) {
-      
+      // MAT_OUT_BIN_QTY
       const qtyStr = parts[3];
       const quantity = parseInt(qtyStr, 10);
       if (isNaN(quantity) || quantity <= 0) {
@@ -314,9 +314,9 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   };
 };
 
-
-
-
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 type ScanEntry = {
   id: number;
@@ -488,8 +488,8 @@ export function AutoScanMaterialModal({
                  if (maxAllowedBinId === 0) maxAllowedBinId = 99;
             }
             
-            
-            
+            // Special biasanya virtual, jadi validasi bin fisik mungkin tidak relevan jika di-scan 01
+            // Tapi jika scan 999 padahal max segment 10, tetap validasi
             if (predictedBinId > maxAllowedBinId && productType !== 'special') {
                 rowError = `Bin ${formattedBin} tidak ada. (Maksimal: ${formatBinId(maxAllowedBinId)})`;
             }
@@ -503,29 +503,29 @@ export function AutoScanMaterialModal({
 
           if (!rowError && parsed.format && predictedBinId !== null) {
             if (parsed.format === "IN") {
-              
+              // IN
               predictedQtyPcs = (productType === 'special') ? packQuantity : quantityPerBin;
               finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`; 
 
             } else if (parsed.format === "OUT_DEFAULT") {
-              
+              // OUT tanpa quantity (misal PART_OUT atau PART_OUT_01)
               if (scan.inputQty === "1") inputQty = "1";
 
               if (productType === "kanban") {
                 predictedQtyPcs = quantityPerBin;
                 finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}`;
               } else if (productType === "special") {
-                
+                // SPECIAL langsung 1 Pack, tidak perlu tanya qty
                 predictedQtyPcs = packQuantity;
                 finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_1`; 
               } else if (productType === "consumable" || productType === "option") {
-                
+                // CONSUMABLE/OPTION langsung 1 Pack, tidak perlu tanya qty (PERUBAHAN DISINI)
                 predictedQtyPcs = packQuantity;
                 finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_1`;
               }
 
             } else if (parsed.format === "OUT_EXPLICIT") {
-              
+              // OUT dengan quantity (misal PART_OUT_01_05)
               const explicitQty = parsed.quantity!;
               inputQty = String(explicitQty);
               finalRawScan = `${parsed.materialCode}_OUT_${formattedBin}_${explicitQty}`;
@@ -533,7 +533,7 @@ export function AutoScanMaterialModal({
               if (productType === "kanban") {
                 rowError = "Format 4-bagian (dgn Qty) tidak valid untuk Kanban.";
               } else if (productType === "special" || productType === "consumable" || productType === "option") {
-                
+                // Jika user explicit scan Qty, kita terima saja, tidak perlu showQtyInput lagi
                 predictedQtyPcs = explicitQty * packQuantity;
               }
             }
@@ -542,7 +542,7 @@ export function AutoScanMaterialModal({
           let newTotalQuantity = runningQuantity;
           
           if (!rowError && predictedQtyPcs !== null && predictedBinId !== null) {
-            
+            // ... (Logika kalkulasi stok sama seperti sebelumnya)
             if (productType === 'special') {
                 if (predictedMovement === "IN") {
                     if (runningVendorStock < predictedQtyPcs) {
@@ -589,7 +589,7 @@ export function AutoScanMaterialModal({
                 }
 
             } else {
-                
+                // NON-SPECIAL (Fisik)
                 const currentBinStock = simulatedBins.get(predictedBinId) || 0;
 
                 if (predictedMovement === "IN") {
@@ -656,7 +656,7 @@ export function AutoScanMaterialModal({
     [role, companyName, username]
   );
 
-  
+  // ... (Sisa kode handler, useEffect, dll sama) ...
   const [groupToRevalidate, setGroupToRevalidate] = useState<string | null>(
     null
   );
@@ -692,7 +692,7 @@ export function AutoScanMaterialModal({
   };
 
   const handleQtyChange = (id: number, newQtyStr: string) => {
-    
+    // ... Logic qty change tetap ada untuk berjaga-jaga jika showQtyInput true ...
     setScans((prevScans) =>
       prevScans.map((scan) => {
         if (scan.id !== id || !scan.showQtyInput) {
@@ -723,23 +723,49 @@ export function AutoScanMaterialModal({
     );
   };
 
+  // ====================================================================
+  // PERBAIKAN DI SINI:
+  // JANGAN UBAH FORMAT TAMPILAN JIKA INPUTNYA SUDAH VALID TAPI PENDEK
+  // ====================================================================
   const handleBlur = (id: number) => {
     const scan = scans.find((s) => s.id === id);
     if (!scan) return;
 
     let newRawScan = scan.rawScan;
     if (scan.showQtyInput) {
-        
+        const qtyNum = parseInt(scan.inputQty, 10);
+        if (isNaN(qtyNum) || qtyNum <= 0) {
+            setScans((prev) =>
+                prev.map((s) =>
+                    s.id === id
+                        ? { ...s, status: "error", errorMessage: "Qty tidak valid", baseData: null }
+                        : s
+                )
+            );
+            return;
+        }
+        const binStr = formatBinId(scan.parsed.binId);
+        newRawScan = `${scan.parsed.materialCode}_OUT_${binStr}_${qtyNum}`;
     } else {
-        const tempParsed = parseRawScan(newRawScan);
-        if (tempParsed.binId !== null && !tempParsed.error && tempParsed.materialCode) {
-             const binStr = formatBinId(tempParsed.binId);
-             newRawScan = `${tempParsed.materialCode}_${tempParsed.movement}_${binStr}`;
-             if (tempParsed.quantity) {
-                newRawScan += `_${tempParsed.quantity}`;
-             }
+        // PERBAIKAN: Cek jumlah segmen string
+        const segments = newRawScan.trim().split('_');
+
+        // Jika user mengetik format pendek (hanya 2 segmen, misal: PART_IN),
+        // JANGAN direformat menjadi PART_IN_01. Biarkan seperti adanya.
+        // Reformatting hanya dilakukan jika user mengetik Bin (segmen > 2)
+        // atau jika ada kesalahan parsing lainnya.
+        if (segments.length > 2) {
+            const tempParsed = parseRawScan(newRawScan);
+            if (tempParsed.binId !== null && !tempParsed.error && tempParsed.materialCode) {
+                 const binStr = formatBinId(tempParsed.binId);
+                 newRawScan = `${tempParsed.materialCode}_${tempParsed.movement}_${binStr}`;
+                 if (tempParsed.quantity) {
+                    newRawScan += `_${tempParsed.quantity}`;
+                 }
+            }
         }
     }
+
     const reParsed = parseRawScan(newRawScan);
     let needsStateUpdate = false;
     if (scan.rawScan !== newRawScan || scan.parsed.error !== reParsed.error) {
