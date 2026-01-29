@@ -48,7 +48,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "jotai": "^2.15.0",
-    "jspdf": "^3.0.3",
+    "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.2",
     "lodash.groupby": "^4.6.0",
     "lodash.throttle": "^4.1.1",
@@ -65,7 +65,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
