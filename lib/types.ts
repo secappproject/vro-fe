@@ -95,7 +95,7 @@ export interface StockMovement {
   id: number;
   materialId: number;
   materialCode: string;
-  
+  vendorCode: string;
   movementType: "Edit" | "Scan IN" | "Scan OUT" | "Edit Vendor Stock" | "Scan In (Special)" | "Scan Out (Special)" | "Edit (Special)";  
   quantityChange: number;
   oldQuantity: number;

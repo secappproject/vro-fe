@@ -270,8 +270,8 @@ const headers = [
       "Deskripsi",
       "SoH (Total Stok)",
       "Replenishment (Bin Kosong)",
-      "Remark Status", // <--- Ganti nama sedikit biar jelas
-      "Alasan Blokir", // <--- TAMBAHAN KOLOM BARU DI EXCEL
+      "Remark Status", 
+      "Alasan Blokir", 
       "Vendor",
       "Vendor Stock",
       "Open PO",
@@ -317,8 +317,8 @@ const headers = [
         row.getValue("materialDescription"),
         row.getValue("soh"),
         row.getValue("replenishment"),
-        remarkAsli,          // <--- Remark status (ok, shortage, BLOCKED)
-        alasanBlokir,        // <--- Kolom baru isi alasan panjangnya
+        remarkAsli,          
+        alasanBlokir,        
         row.getValue("vendorCode"),
         row.getValue("vendorStock"),
         row.getValue("openPO"),
@@ -424,6 +424,7 @@ const headers = [
       const headers = [
         "Waktu",
         "Kode Material",
+        "Vendor",
         "Tipe",
         "Perubahan",
         "Qty Lama",
@@ -448,6 +449,7 @@ const headers = [
         return [
           timestamp,
           m.materialCode,
+          m.vendorCode,
           m.movementType,
           change,
           m.oldQuantity,
