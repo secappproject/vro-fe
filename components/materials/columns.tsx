@@ -231,7 +231,6 @@ export const getMaterialColumns = (
     enableSorting: true,
     filterFn: exactFilterFn,
   },
-<<<<<<< HEAD
 {
     id: "remark",
     accessorFn: (row) => {
@@ -245,11 +244,6 @@ export const getMaterialColumns = (
       }
 
       // 2. KALAU NORMAL (Nggak diblokir), LANJUT HITUNG STOK LAMA:
-=======
-  {
-    id: "remark",
-    accessorFn: (row) => {
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
       const { currentQuantity = 0, maxBinQty, packQuantity } = row;
 
       if (packQuantity <= 0 || maxBinQty <= 0) {
@@ -274,7 +268,6 @@ export const getMaterialColumns = (
     cell: ({ row }) => {
       const remark = row.getValue("remark") as string;
 
-<<<<<<< HEAD
       // 3. KASIH WARNA KHUSUS KALAU MATERIALNYA DIBLOKIR
       if (remark && remark.startsWith("BLOCKED|")) {
         // Buang bendera rahasia "BLOCKED|" biar sisa alasannya aja
@@ -292,8 +285,6 @@ export const getMaterialColumns = (
       }
 
       // 4. WARNA LAMA UNTUK STATUS STOK
-=======
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
       let colorClass = "";
       switch (remark) {
         case "shortage":

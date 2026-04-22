@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-<<<<<<< HEAD
 import { 
   Dialog, 
   DialogContent, 
@@ -20,9 +19,6 @@ import {
   DialogTitle, 
   DialogFooter 
 } from "@/components/ui/dialog";
-=======
-import { Dialog } from "@/components/ui/dialog";
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Material, useAuthStore } from "@/lib/types";
 import { DeleteMaterialAlert } from "../materials/delete-material-alert";
@@ -41,11 +37,8 @@ export function MaterialDataTableRowActions({
 }: DataTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-<<<<<<< HEAD
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [remarkBlock, setRemarkBlock] = useState("");
-=======
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
   const { role, companyName } = useAuthStore(); 
   const router = useRouter(); 
 
@@ -60,7 +53,6 @@ export function MaterialDataTableRowActions({
     router.push(`/materials/${material.id}`);
   };
 
-<<<<<<< HEAD
   const executeBlockAction = async (action: "block" | "unblock", remark: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/${material.id}/${action}`, {
@@ -89,30 +81,6 @@ export function MaterialDataTableRowActions({
       return;
     }
     await executeBlockAction("unblock", "");
-=======
-  
-  const handleToggleBlock = async () => {
-    const action = isBlocked ? "unblock" : "block";
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/materials/${material.id}/${action}`, {
-            method: "PATCH",
-            headers: {
-                "X-User-Role": role || "",
-                "X-User-Company": companyName || "",
-            }
-        });
-
-        if (res.ok) {
-            
-            
-            window.location.reload(); 
-        } else {
-            alert("Gagal mengubah status material");
-        }
-    } catch (error) {
-        console.error(error);
-    }
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
   };
 
   return (
@@ -133,10 +101,6 @@ export function MaterialDataTableRowActions({
             Lihat Histori Stok
           </DropdownMenuItem>
 
-<<<<<<< HEAD
-=======
-          {}
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
           <DropdownMenuItem onSelect={handleToggleBlock}>
             {isBlocked ? (
                 <>
@@ -166,10 +130,6 @@ export function MaterialDataTableRowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-<<<<<<< HEAD
-=======
-      {}
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <EditMaterialModal
           material={material}
@@ -177,10 +137,7 @@ export function MaterialDataTableRowActions({
           onMaterialUpdated={onMaterialUpdated}
         />
       </Dialog>
-<<<<<<< HEAD
       
-=======
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
       <AlertDialog
         open={isDeleteAlertOpen}
         onOpenChange={setIsDeleteAlertOpen}
@@ -191,7 +148,6 @@ export function MaterialDataTableRowActions({
           onMaterialDeleted={onMaterialDeleted}
         />
       </AlertDialog>
-<<<<<<< HEAD
 
       {/* MODAL ALASAN BLOCK YANG SUDAH JALAN & RAPI */}
       <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
@@ -224,8 +180,6 @@ export function MaterialDataTableRowActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-=======
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
     </>
   );
 }

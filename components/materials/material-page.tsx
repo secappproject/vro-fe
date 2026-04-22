@@ -24,11 +24,8 @@ export function MaterialPage() {
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isVendorImportOpen, setIsVendorImportOpen] = useState(false); 
-<<<<<<< HEAD
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false); 
   const [remarkBlock, setRemarkBlock] = useState(""); 
-=======
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
 
   const { role, companyName } = useAuthStore();
   const [isClient, setIsClient] = useState(false);
@@ -53,14 +50,10 @@ export function MaterialPage() {
         },
       });
       if (!res.ok) {
-<<<<<<< HEAD
         // Ini bakal ngebongkar isi penolakan dari Backend Go
         const errorDetail = await res.text(); 
         console.error("Backend nolak nih bang! Status:", res.status, "Detail:", errorDetail);
         throw new Error(`Gagal (Status ${res.status}): ${errorDetail}`);
-=======
-        throw new Error("Gagal mengambil data material");
->>>>>>> b0586db37ff736a32a77553636f7e6762329062f
       }
       const materials = await res.json();
       setData(materials || []);
