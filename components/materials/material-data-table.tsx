@@ -30,7 +30,9 @@ import {
   UnfoldHorizontalIcon, 
   X, 
   Download, 
-  History, 
+  History,
+  Ban,
+  Unlock, 
   Trash2 
 } from "lucide-react";
 import {
@@ -251,6 +253,122 @@ export function MaterialDataTable<TData extends Material, TValue>({
     }
   };
 
+  const handleBulkBlock = async () => {
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedMaterials = selectedRows.map((row) => row.original);
+
+  if (selectedMaterials.length === 0) return;
+
+  // Filter hanya material yang BELUM diblokir
+  const materialsToBlock = selectedMaterials.filter(
+    (material) => material.productType !== "block"
+  );
+
+  if (materialsToBlock.length === 0) {
+    alert("Tidak ada material yang bisa diblokir (sudah terblokir semua).");
+    return;
+  }
+
+  const confirmMessage = `Blokir ${materialsToBlock.length} material? 
+Material yang sudah terblokir akan diabaikan.`;
+
+  if (!confirm(confirmMessage)) return;
+
+  try {
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const material of materialsToBlock) {
+      const remarkBlockValue = `BLOCKED|Diblokir massal oleh ${username} pada ${new Date().toLocaleString("id-ID")}`;
+
+      const response = await fetch(`${API_URL}/api/materials/${material.id}/block`, {
+        method: "PATCH",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productType: "block",
+          remarkBlock: remarkBlockValue,
+        }),
+      });
+
+      if (response.ok) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+
+    setRowSelection({});
+
+    if (onDataChanged) {
+      onDataChanged();
+    } else {
+      window.location.reload();
+    }
+
+    alert(`Berhasil memblokir ${successCount} material. Gagal: ${failCount}.`);
+  } catch (error) {
+    console.error("Gagal memblokir material", error);
+    alert("Terjadi kesalahan saat memblokir material.");
+  }
+};
+const handleBulkUnblock = async () => {
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedMaterials = selectedRows.map((row) => row.original);
+
+  if (selectedMaterials.length === 0) return;
+
+  // Filter hanya material yang SEDANG diblokir (productType === "block")
+  const materialsToUnblock = selectedMaterials.filter(
+    (material) => material.productType === "block"
+  );
+
+  if (materialsToUnblock.length === 0) {
+    alert("Tidak ada material yang bisa dibuka blokir (semua belum diblokir).");
+    return;
+  }
+
+  const confirmMessage = `Buka blokir ${materialsToUnblock.length} material?`;
+
+  if (!confirm(confirmMessage)) return;
+
+  try {
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const material of materialsToUnblock) {
+      const response = await fetch(`${API_URL}/api/materials/${material.id}/unblock`, {
+        method: "PATCH",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (response.ok) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+
+    setRowSelection({});
+
+    if (onDataChanged) {
+      onDataChanged();
+    } else {
+      window.location.reload();
+    }
+
+    alert(`Berhasil membuka blokir ${successCount} material. Gagal: ${failCount}.`);
+  } catch (error) {
+    console.error("Gagal membuka blokir material", error);
+    alert("Terjadi kesalahan saat membuka blokir material.");
+  }
+};
   const handleDownload = async () => {
     const rows = table.getFilteredRowModel().rows;
     if (rows.length === 0) {
@@ -572,7 +690,7 @@ const headers = [
 
         <div className="flex items-center gap-2">
             {/* TOMBOL DELETE SELECTED */}
-            {Object.keys(rowSelection).length > 0 && (
+             {(role === "Superuser" ) && Object.keys(rowSelection).length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="h-9 gap-2">
@@ -597,6 +715,59 @@ const headers = [
             </AlertDialog>
           )}
 
+            {/* TOMBOL BLOCK MASSAL */}
+   {(role === "Superuser") && Object.keys(rowSelection).length > 0 && (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-2 border-amber-500 text-amber-600 hover:bg-amber-50">
+          <Ban className="h-4 w-4" />
+          Blokir ({Object.keys(rowSelection).length})
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Blokir Material Terpilih</AlertDialogTitle>
+          <AlertDialogDescription>
+            Material yang diblokir tidak akan bisa digunakan dalam transaksi.
+            Material yang sudah terblokir akan diabaikan.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={handleBulkBlock} className="bg-amber-600 hover:bg-amber-700">
+            Ya, Blokir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )}
+
+  {/* TOMBOL UNBLOCK MASSAL */}
+  {(role === "Superuser" ) && Object.keys(rowSelection).length > 0 && (
+    <AlertDialog>
+            <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-2 border-green-500 text-green-600 hover:bg-green-50">
+          <Unlock className="h-4 w-4" />
+          Buka Blokir ({Object.keys(rowSelection).length})
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Buka Blokir Material Terpilih</AlertDialogTitle>
+          <AlertDialogDescription>
+            Material yang dibuka blokir akan dapat digunakan kembali dalam transaksi.
+            Material yang tidak dalam status blokir akan diabaikan.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={handleBulkUnblock} className="bg-green-600 hover:bg-green-700">
+            Ya, Buka Blokir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )}
           <div className="flex flex-row items-center gap-2">
             {lastDownloadInfo && (
               <span className="text-xs text-muted-foreground font-mono whitespace-nowrap hidden lg:block">
