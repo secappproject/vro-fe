@@ -716,7 +716,7 @@ const headers = [
           )}
 
             {/* TOMBOL BLOCK MASSAL */}
-   {(role === "Superuser") && Object.keys(rowSelection).length > 0 && (
+   {(role === "Superuser" || role === "Admin") && Object.keys(rowSelection).length > 0 && (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 gap-2 border-amber-500 text-amber-600 hover:bg-amber-50">
@@ -743,7 +743,7 @@ const headers = [
   )}
 
   {/* TOMBOL UNBLOCK MASSAL */}
-  {(role === "Superuser" ) && Object.keys(rowSelection).length > 0 && (
+  {(role === "Superuser" || role === "Admin") && Object.keys(rowSelection).length > 0 && (
     <AlertDialog>
             <AlertDialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 gap-2 border-green-500 text-green-600 hover:bg-green-50">
