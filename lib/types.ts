@@ -31,13 +31,15 @@ export type User = {
   username: string;
   role: string;
   companyName: NullString | null;  
-  vendorType: NullString | null;  
+  vendorType: NullString | null; 
+  email?: string 
 };
 
 export interface Vendor {
   id: number;
   companyName: string;
   vendorType: string;
+  email: string | null | { String: string; Valid: boolean };
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +68,10 @@ export interface Material {
   previousProductType?: string;
   bins?: MaterialBin[]; 
   remarkBlock?: any;
+  amu?: number | null;
+  fmrs?: string | null;
+  ss?: number;              
+  warningStatus?: string;  
 }
 
 export interface MaterialStatusResponse {

@@ -397,6 +397,68 @@ export const getMaterialColumns = (
     filterFn: exactFilterFn,
   },
   {
+    accessorKey: "ss",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Safety Stock" />
+    ),
+    cell: ({ row }) => {
+      const ss = row.original.ss;
+      return <span>{ss !== undefined && ss !== null ? Math.ceil(ss) : "-"}</span>;
+    },
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterFn: exactFilterFn,
+  },
+  {
+    accessorKey: "amu",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="AMU" />
+    ),
+    cell: ({ row }) => {
+      const amuValue = row.getValue("amu");
+      return (
+        <div className="font-medium">
+          {amuValue !== null && amuValue !== undefined ? String(amuValue) : "-"}
+        </div>
+      );
+      },
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: exactFilterFn,
+  },
+  {
+    accessorKey: "fmrs",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="FMRS" />
+    ),
+    cell: ({ row }) => {
+      const fmrsValue = row.getValue("fmrs") as string;
+      return <div className="font-medium uppercase">{fmrsValue || "-"}</div>;
+    },
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterFn: exactFilterFn,
+  },
+  {
+    accessorKey: "warningStatus",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Remark Cov" />
+    ),
+    cell: ({ row }) => {
+      const status = row.original.warningStatus;
+      if (status === "critical") {
+        return <span className="text-red-600 font-bold">Critical</span>;
+      }
+      if (status === "warning") {
+        return <span className="text-yellow-600 font-bold">Warning</span>;
+      }
+      return <span className="text-green-600">Safe</span>;
+    },
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterFn: exactFilterFn,
+  },
+  {
     id: "actions",
     cell: ({ row }) => (
       <MaterialDataTableRowActions

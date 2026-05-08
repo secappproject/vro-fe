@@ -15,6 +15,7 @@ import { AddMaterialModal } from "./add-material.modal";
 import { AutoScanMaterialModal } from "./scan-material-modal";
 import { ImportMaterialModal } from "./import-material-modal";
 import { ImportVendorStockModal } from "./import-vendor-stock-modal";
+import { ImportParameterModal } from "./import-parameter-modal";
 
 export function MaterialPage() {
   const [data, setData] = useState<Material[]>([]);
@@ -24,6 +25,8 @@ export function MaterialPage() {
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isVendorImportOpen, setIsVendorImportOpen] = useState(false); 
+  const [isAmuFmrsImportOpen, setIsAmuFmrsImportOpen] = useState(false);
+
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false); 
   const [remarkBlock, setRemarkBlock] = useState(""); 
 
@@ -142,6 +145,17 @@ export function MaterialPage() {
             </Button>
           )}
 
+          {canImportMaster && (
+            <Button
+              variant="outline"
+              className="flex w-full md:w-auto"
+              onClick={() => setIsAmuFmrsImportOpen(true)}
+            >
+              <Import className="mr-2 h-4 w-4" />
+              Import AMU & FMR
+            </Button>
+          )}
+
           {canScan && (
             <Button
               variant="outline"
@@ -194,6 +208,13 @@ export function MaterialPage() {
         <ImportVendorStockModal
           setIsOpen={setIsVendorImportOpen}
           onImportSuccess={getMaterialData}
+        />
+      </Dialog>
+
+      <Dialog open={isAmuFmrsImportOpen} onOpenChange={setIsAmuFmrsImportOpen}>
+        <ImportParameterModal
+          setIsOpen={setIsAmuFmrsImportOpen}
+          onImportSuccess={getMaterialData} // Ini akan memicu refresh data tabel otomatis
         />
       </Dialog>
     </div>

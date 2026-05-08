@@ -38,6 +38,17 @@ export function EditVendorModal({
   const authRole = useAuthStore((state) => state.role);
 
   const [companyName, setCompanyName] = useState(vendor.companyName);
+  
+  // ========== PERBAIKAN: Ambil email dengan benar ==========
+  const getEmailString = (email: any): string => {
+    if (!email) return "";
+    if (typeof email === "string") return email;
+    if (typeof email === "object" && "String" in email) return email.String || "";
+    return "";
+  };
+  
+  const [email, setEmail] = useState(getEmailString(vendor.email));
+  // =========================================================
 
   const isPredefined = PREDEFINED_TYPES.includes(vendor.vendorType);
 
@@ -64,6 +75,7 @@ export function EditVendorModal({
       const payload = {
         companyName,
         vendorType: finalVendorType,
+        email: email,
       };
 
       const response = await fetch(
@@ -87,6 +99,7 @@ export function EditVendorModal({
         ...vendor,
         companyName,
         vendorType: finalVendorType,
+        email: email,
       };
 
       onVendorUpdated(updatedVendor);
@@ -112,30 +125,25 @@ export function EditVendorModal({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="companyName" className="text-left">
-            Nama Perusahaan
-          </Label>
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="companyName">Nama Perusahaan</Label>
           <Input
             id="companyName"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="col-span-3"
             disabled={isReadOnly}
           />
         </div>
 
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="vendorTypeSelect" className="text-left">
-            Tipe Vendor
-          </Label>
+        <div className="space-y-2">
+          <Label htmlFor="vendorTypeSelect">Tipe Vendor</Label>
           <Select
             value={selectedType}
             onValueChange={setSelectedType}
             disabled={isReadOnly}
           >
-            <SelectTrigger className="col-span-3">
+            <SelectTrigger>
               <SelectValue placeholder="Pilih tipe" />
             </SelectTrigger>
             <SelectContent>
@@ -150,20 +158,32 @@ export function EditVendorModal({
         </div>
 
         {selectedType === OTHER_VALUE && (
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="customVendorType" className="text-left">
-              Tipe Lainnya
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="customVendorType">Tipe Lainnya</Label>
             <Input
               id="customVendorType"
               value={customType}
               onChange={(e) => setCustomType(e.target.value)}
-              className="col-span-3"
               placeholder="Masukkan tipe vendor kustom"
               disabled={isReadOnly}
             />
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vendor@company.com"
+            disabled={isReadOnly}
+          />
+          <p className="text-xs text-muted-foreground">
+            Email akan digunakan untuk mengirim notifikasi stok menipis
+          </p>
+        </div>
       </div>
 
       <DialogFooter>
@@ -171,7 +191,7 @@ export function EditVendorModal({
           {isReadOnly ? "Tutup" : "Batal"}
         </Button>
         {!isReadOnly && (
-          <Button onClick={handleSubmit} disabled={isLoading || isReadOnly}>
+          <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         )}

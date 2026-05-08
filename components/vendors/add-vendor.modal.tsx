@@ -35,9 +35,9 @@ export function AddVendorModal({
   const [isLoading, setIsLoading] = useState(false);
   const role = useAuthStore((state) => state.role);
   const [companyName, setCompanyName] = useState("");
-  
   const [selectedType, setSelectedType] = useState("");
   const [customType, setCustomType] = useState("");
+  const [email, setEmail] = useState("");
 
   const handleSubmit = async () => {
     const finalVendorType =
@@ -51,7 +51,8 @@ export function AddVendorModal({
     try {
       const payload = {
         companyName,
-        vendorType: finalVendorType, 
+        vendorType: finalVendorType,
+        email: email,
       };
 
       const response = await fetch(
@@ -91,25 +92,20 @@ export function AddVendorModal({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="companyName" className="text-left">
-            Nama Perusahaan
-          </Label>
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="companyName">Nama Perusahaan</Label>
           <Input
             id="companyName"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="col-span-3"
           />
         </div>
-        
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="vendorTypeSelect" className="text-left">
-            Tipe Vendor
-          </Label>
+
+        <div className="space-y-2">
+          <Label htmlFor="vendorTypeSelect">Tipe Vendor</Label>
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="col-span-3">
+            <SelectTrigger>
               <SelectValue placeholder="Pilih tipe" />
             </SelectTrigger>
             <SelectContent>
@@ -124,19 +120,30 @@ export function AddVendorModal({
         </div>
 
         {selectedType === OTHER_VALUE && (
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="customVendorType" className="text-left">
-              Tipe Lainnya
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="customVendorType">Tipe Lainnya</Label>
             <Input
               id="customVendorType"
               value={customType}
               onChange={(e) => setCustomType(e.target.value)}
-              className="col-span-3"
               placeholder="Masukkan tipe vendor kustom"
             />
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vendor@company.com"
+          />
+          <p className="text-xs text-muted-foreground">
+            Email akan digunakan untuk mengirim notifikasi stok menipis
+          </p>
+        </div>
       </div>
 
       <DialogFooter>

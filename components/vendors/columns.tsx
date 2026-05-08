@@ -69,6 +69,22 @@ export const getVendorColumns = (
     },
   },
   {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => {
+      const emailData = row.original.email;
+      let email = "-";
+      if (emailData) {
+        if (typeof emailData === 'object' && 'String' in emailData) {
+          email = emailData.String || "-";
+        } else if (typeof emailData === 'string') {
+          email = emailData;
+        }
+      }
+      return <span className="truncate max-w-[200px] block">{email}</span>;
+    },
+  },
+  {
     id: "actions",
     cell: ({ row }) => (
       <VendorDataTableRowActions

@@ -97,6 +97,8 @@ export function MaterialDataTable<TData extends Material, TValue>({
       maxBinQty: false,
       totalBins: false,
       pic: false,
+      amu: false,
+      fmrs: false,
     });
 
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -401,6 +403,10 @@ const headers = [
       "Total Bins",
       "PIC",
       "Rincian Stok Bin",
+      "AMU",
+      "FMRS",
+      "Safety Stock",      // <-- TAMBAHKAN
+      "Remark Cov",
     ];
 
     const dataToExport = rows.map((row) => {
@@ -448,6 +454,10 @@ const headers = [
         row.getValue("totalBins"),
         row.getValue("pic"),
         binDetails,
+        original.amu ?? 0,
+        original.fmrs ?? "-",
+        original.ss ?? 0,
+        original.warningStatus || "-",
       ];
     });
 
