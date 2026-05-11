@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import {
   PieChart,
   Pie,
@@ -15,32 +15,41 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-export default function ChartSection({ stats, materialPerType, materialPerVendor }: any) {
-  
-  // 1. Setup data buat Pie Chart
+export default function ChartSection({ stats, materialPerVendor, materials }: any) {
   const pieData = [
-    { name: "Shortage", value: stats.shortage, color: "#ef4444" },    // Merah
-    { name: "Preshortage", value: stats.preshortage, color: "#eab308" }, // Kuning
-    { name: "OK", value: stats.ok, color: "#10b981" },                // Hijau
+    { name: "Critical", value: stats.critical, color: "#ef4444" },
+    { name: "Warning", value: stats.warning, color: "#f59e0b" },
+    { name: "Safe", value: stats.safe, color: "#10b981" },
   ].filter((d) => d.value > 0);
 
-  // 2. Setup Warna untuk Stacked Chart
+  const stackedChartData = useMemo(() => {
+    const fmrsList = ["F", "M", "R", "S"];
+    return fmrsList.map((fmrs) => {
+      const items = materials?.filter((m: any) => m.fmrs === fmrs) || [];
+      const critical = items.filter((m: any) => m.warningStatus === "critical").length;
+      const warning = items.filter((m: any) => m.warningStatus === "warning").length;
+      const safe = items.filter((m: any) => m.warningStatus === "safe").length;
+      return { fmrs, critical, warning, safe, total: items.length };
+    });
+  }, [materials]);
+
   const statusColors = {
-    shortage: "#ef4444",    // Merah
-    preshortage: "#eab308", // Kuning
-    ok: "#10b981",          // Hijau
+    critical: "#ef4444",
+    warning: "#f59e0b",
+    safe: "#10b981",
   };
 
   return (
     <div className="flex flex-col gap-6">
       
-      {/* --- BARIS 1: Status & Tipe (2 Kolom Sejajar) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* 1. Status Material (Pie Chart) */}
+        {/* Pie Chart */}
         <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Status Material</h2>
-          <div className="h-72 w-full"> 
+          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">
+            Status Supplier Stock (Safety Stock)
+          </h2>
+          <div className="h-72 w-full"> {/* Disamakan h-72 agar seimbang */}
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -62,16 +71,17 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
           </div>
         </div>
 
-        {/* 2. Material per Tipe (Stacked Chart) */}
-        <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Material per Tipe</h2>
-          <div className="h-72 w-full">
+        {/* Stacked Chart per FMRS (VERTIKAL) */}
+        <div className="bg-white p-6 rounded-2xl border shadow-sm">
+          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">
+            Stacked Chart per FMRS (Critical, Warning, Safe)
+          </h2>
+          <div className="h-72 w-full"> {/* Diubah dari h-80 ke h-72 agar sama dengan Vendor */}
             <ResponsiveContainer width="100%" height="100%">
-              {/* Di sini kita langsung pakai prop materialPerType dari page.tsx */}
-              <BarChart data={materialPerType} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+              <BarChart data={stackedChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis 
-                  dataKey="name" 
+                  dataKey="fmrs" 
                   tick={{ fontSize: 11 }} 
                   interval={0} 
                   angle={-15} 
@@ -80,19 +90,18 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip cursor={{ fill: '#f3f4f6' }} />
                 <Legend />
-                <Bar dataKey="shortage" stackId="a" fill={statusColors.shortage} name="Shortage" barSize={45} />
-                <Bar dataKey="preshortage" stackId="a" fill={statusColors.preshortage} name="Preshortage" barSize={45} />
-                <Bar dataKey="ok" stackId="a" fill={statusColors.ok} name="OK" barSize={45} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="critical" stackId="a" fill={statusColors.critical} name="Critical" barSize={45} />
+                <Bar dataKey="warning" stackId="a" fill={statusColors.warning} name="Warning" barSize={45} />
+                <Bar dataKey="safe" stackId="a" fill={statusColors.safe} name="Safe" barSize={45} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
 
-      {/* --- BARIS 2: Material per Vendor (Full Width / Penuh ke Samping) --- */}
-      <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center w-full">
-        <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Material per Vendor</h2>
+      {/* Bar Chart per Vendor */}
+      <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Material per Vendor</h2>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={materialPerVendor} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>

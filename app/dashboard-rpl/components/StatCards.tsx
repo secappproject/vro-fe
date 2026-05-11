@@ -4,13 +4,11 @@ import React from "react";
 
 export default function StatCards({ stats }: any) {
   const cards = [
-    { label: "SHORTAGE", value: stats.shortage, color: "border-l-red-500 text-red-600" },
-    { label: "BLOCKED", value: stats.blocked, color: "border-l-orange-500 text-orange-600" },
-    { label: "TOTAL ITEMS", value: stats.total, color: "border-l-green-500 text-green-600" },
-    { label: "OPEN PO TOTAL", value: stats.openPo || 0, color: "border-l-blue-500 text-blue-600" },
-    // Kalau mau pas 4 kotak sesuai gambar Paint, hapus salah satu. 
-    // Tapi kalau mau 5 tetap 1 baris, grid-cols-5 di bawah akan otomatis nyesuain.
-    { label: "VENDOR STOCK", value: stats.vendorStock || 0, color: "border-l-purple-500 text-purple-600" },
+    { label: "SHORTAGE (SKU)", value: stats.shortage, color: "border-l-red-500 text-red-600" },
+    { label: "BLOCKED (SKU)", value: stats.blocked, color: "border-l-orange-500 text-orange-600" },
+    { label: "TOTAL ITEMS (SKU)", value: stats.total, color: "border-l-green-500 text-green-600" },
+    { label: "OPEN PO QTY", value: stats.openPo || 0, color: "border-l-blue-500 text-blue-600" },
+    { label: "VENDOR STOCK QTY", value: stats.vendorStock || 0, color: "border-l-purple-500 text-purple-600" },
   ];
 
   return (

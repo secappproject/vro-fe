@@ -3,12 +3,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/types";
-
 import StatCards from "./components/StatCards";
 import ChartSection from "./components/ChartSection";
-import DataTable from "./components/DataTable"; // Pastikan ini terpanggil di bawah
+import DataTable from "./components/DataTable";
 
-export default function DashboardRplPage() {
+export default function DashboardSupplierPage() {
   const { role, companyName } = useAuthStore();
   const [materials, setMaterials] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,7 +18,7 @@ export default function DashboardRplPage() {
   const [filterVendor, setFilterVendor] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMaterial, setFilterMaterial] = useState("");
-  const [filterType, setFilterType] = useState("Semua Tipe");
+  const [filterFmrs, setFilterFmrs] = useState("all");
 
   // Fetch data
   useEffect(() => {
@@ -43,73 +42,49 @@ export default function DashboardRplPage() {
     if (role) fetchData();
   }, [role, companyName]);
 
-  // Logic Status Material
-  const getMaterialStatus = useCallback((m: any): string => {
-    const type = String(m.productType || "").toLowerCase();
-    const remark = m.remarkBlock?.String || "";
-    const remarkValid = m.remarkBlock?.Valid || false;
-    const current = Number(m.currentQuantity ?? 0);
-    const max = Number(m.maxBinQty ?? 0);
-
-    if (type === "block" || (remarkValid && remark !== "")) return "blocked";
-    if (max === 0) return "ok";
-    if (current <= 0.3 * max) return "shortage";
-    if (current <= 0.6 * max) return "preshortage";
-    return "ok";
+  // Status berdasarkan warningStatus
+  const getSupplierStatus = useCallback((m: any): string => {
+    if (m.productType === "block" || (m.remarkBlock?.Valid && m.remarkBlock?.String !== "")) {
+      return "blocked";
+    }
+    if (m.warningStatus === "critical") return "critical";
+    if (m.warningStatus === "warning") return "warning";
+    return "safe";
   }, []);
 
   // Filtering
   const filteredData = useMemo(() => {
     return materials.filter((m) => {
-      const mVendor = String(m.vendorCode || "").trim();
-      const mStatus = getMaterialStatus(m);
-      const mName = String(m.material || "").toLowerCase();
-      const mType = String(m.productType || "N/A").trim().toLowerCase();
-
-      const matchVendor = filterVendor === "all" || mVendor === filterVendor;
-      const matchStatus = filterStatus === "all" || mStatus === filterStatus;
-      const matchType = filterType === "Semua Tipe" || mType === filterType.toLowerCase();
-      const matchSearch = mName.includes(filterMaterial.toLowerCase());
-
-      return matchVendor && matchStatus && matchType && matchSearch;
+      const matchVendor = filterVendor === "all" || (m.vendorCode || "") === filterVendor;
+      const matchStatus = filterStatus === "all" || getSupplierStatus(m) === filterStatus;
+      const matchMaterial = (m.material || "").toLowerCase().includes(filterMaterial.toLowerCase());
+      const matchFmrs = filterFmrs === "all" || (m.fmrs || "") === filterFmrs;
+      return matchVendor && matchStatus && matchMaterial && matchFmrs;
     });
-  }, [materials, filterVendor, filterStatus, filterMaterial, filterType, getMaterialStatus]);
+  }, [materials, filterVendor, filterStatus, filterMaterial, filterFmrs, getSupplierStatus]);
 
   // Statistik
   const stats = useMemo(() => {
-    let shortage = 0, preshortage = 0, blocked = 0, ok = 0;
+    let critical = 0, warning = 0, blocked = 0, safe = 0;
     filteredData.forEach((m) => {
-      const s = getMaterialStatus(m);
-      if (s === "shortage") shortage++;
-      else if (s === "preshortage") preshortage++;
+      const s = getSupplierStatus(m);
+      if (s === "critical") critical++;
+      else if (s === "warning") warning++;
       else if (s === "blocked") blocked++;
-      else ok++;
+      else safe++;
     });
-    return { shortage, preshortage, blocked, ok, total: filteredData.length };
-  }, [filteredData, getMaterialStatus]);
+    return { critical, warning, blocked, safe, total: filteredData.length };
+  }, [filteredData, getSupplierStatus]);
 
-  // Data Charts: Modifikasi untuk mendukung Stacked Chart per Tipe
-  const materialPerType = useMemo(() => {
-    const map: Record<string, { shortage: number; preshortage: number; ok: number }> = {};
-    
+  // Chart data
+  const materialPerFmrs = useMemo(() => {
+    const map: Record<string, number> = {};
     filteredData.forEach((m) => {
-      const type = m.productType || "N/A";
-      
-      // Inisialisasi struktur jika belum ada
-      if (!map[type]) {
-        map[type] = { shortage: 0, preshortage: 0, ok: 0 };
-      }
-
-      // Hitung berdasarkan status
-      const status = getMaterialStatus(m);
-      if (status === "shortage") map[type].shortage++;
-      else if (status === "preshortage") map[type].preshortage++;
-      else if (status === "ok") map[type].ok++;
+      const fmrs = m.fmrs || "N/A";
+      map[fmrs] = (map[fmrs] || 0) + 1;
     });
-    
-    // Ubah format object ke array untuk Recharts
-    return Object.entries(map).map(([name, counts]) => ({ name, ...counts }));
-  }, [filteredData, getMaterialStatus]);
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [filteredData]);
 
   const materialPerVendor = useMemo(() => {
     const map: Record<string, number> = {};
@@ -120,7 +95,7 @@ export default function DashboardRplPage() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filteredData]);
 
-  if (isLoading) return <div className="p-4 text-center mt-10">Loading Data...</div>;
+  if (isLoading) return <div className="p-4 text-center mt-10">Loading Supplier Stock Data...</div>;
 
   return (
     <div className="flex flex-col gap-6 w-full pb-32 h-[calc(100vh-90px)] overflow-y-auto px-4 md:px-6">
@@ -128,8 +103,8 @@ export default function DashboardRplPage() {
       {/* HEADER & TOGGLE BUTTONS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">RPL Dashboard</h1>
-          <p className="text-xs text-gray-500">Monitoring Stock & Vendor Performance</p>
+          <h1 className="text-xl font-bold text-gray-800">Dashboard Supplier Stock</h1>
+          <p className="text-xs text-gray-500">Monitoring Stok Vendor (AMU × FMRS = Safety Stock)</p>
         </div>
 
         {/* TOGGLE WHS STOCK / SUPPLIER STOCK */}
@@ -169,7 +144,7 @@ export default function DashboardRplPage() {
           onChange={(e) => setFilterVendor(e.target.value)}
         >
           <option value="all">Semua Vendor</option>
-          {[...new Set(materials.map((m) => String(m.vendorCode || "").trim()).filter(Boolean))].sort().map((v) => (
+          {[...new Set(materials.map((m) => m.vendorCode).filter(Boolean))].sort().map((v) => (
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
@@ -180,34 +155,32 @@ export default function DashboardRplPage() {
           onChange={(e) => setFilterStatus(e.target.value)}
         >
           <option value="all">Semua Status</option>
-          <option value="shortage">Shortage</option>
-          <option value="preshortage">Pre-Shortage</option>
+          <option value="critical">Critical </option>
+          <option value="warning">Warning </option>
+          <option value="safe">Safe </option>
           <option value="blocked">Blocked</option>
-          <option value="ok">OK</option>
         </select>
 
         <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded-lg px-4 py-2 text-sm bg-white cursor-pointer"
+          className="text-sm border p-2 rounded-md outline-none bg-white"
+          value={filterFmrs}
+          onChange={(e) => setFilterFmrs(e.target.value)}
         >
-          <option value="Semua Tipe">Semua Tipe</option>
-          <option value="special">Special</option>
-          <option value="kanban">Kanban</option>
-          <option value="block">Block</option>
+          <option value="all">Semua FMRS</option>
+          <option value="F">F </option>
+          <option value="M">M </option>
+          <option value="R">R </option>
+          <option value="S">S </option>
         </select>
       </div>
 
       <StatCards stats={stats} />
-      
-      {/* Melempar materials={filteredData} agar ChartSection bisa mengolah jika diperlukan */}
       <ChartSection 
-        stats={stats} 
-        materialPerType={materialPerType} 
-        materialPerVendor={materialPerVendor} 
-        materials={filteredData}
-      />
-      
+  stats={stats} 
+  materialPerVendor={materialPerVendor}
+  materials={filteredData} 
+/>
+     {/*<DataTable data={filteredData} getStatus={getSupplierStatus} />*/}
     </div>
   );
 }
