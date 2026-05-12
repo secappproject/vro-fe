@@ -83,7 +83,7 @@ export function ImportParameterModal({
   };
   
 const handleDownloadTemplate = () => {
-  const headers = ["Material Code", "AMU", "FMRS"];
+  const headers = ["Material Code", "AMU QTY", "FMRS"];
   const csvContent = headers.join(","); 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");

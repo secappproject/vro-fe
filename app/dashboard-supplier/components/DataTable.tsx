@@ -26,7 +26,7 @@ export default function DataTable({ data, getStatus }: { data: any[], getStatus:
             <th className="p-2">Description</th>
             <th className="p-2">Vendor</th>
             <th className="p-2">Vendor Stock</th>
-            <th className="p-2">AMU</th>
+            <th className="p-2">AMU QTY</th>
             <th className="p-2">FMRS</th>
             <th className="p-2">Safety Stock</th>
             <th className="p-2">Status</th>

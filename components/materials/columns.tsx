@@ -263,7 +263,7 @@ export const getMaterialColumns = (
       }
     },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Remark" />
+      <DataTableColumnHeader column={column} title="Remark SEC" />
     ),
     cell: ({ row }) => {
       const remark = row.getValue("remark") as string;
@@ -412,7 +412,7 @@ export const getMaterialColumns = (
   {
     accessorKey: "amu",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="AMU" />
+      <DataTableColumnHeader column={column} title="AMU QTY" />
     ),
     cell: ({ row }) => {
       const amuValue = row.getValue("amu");
@@ -442,7 +442,7 @@ export const getMaterialColumns = (
   {
     accessorKey: "warningStatus",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Remark Cov" />
+      <DataTableColumnHeader column={column} title="Remark Supplier" />
     ),
     cell: ({ row }) => {
       const status = row.original.warningStatus;

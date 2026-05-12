@@ -390,7 +390,7 @@ const headers = [
       "Deskripsi",
       "SoH (Total Stok)",
       "Replenishment (Bin Kosong)",
-      "Remark Status", 
+      "Remark SEC", 
       "Alasan Blokir", 
       "Vendor",
       "Vendor Stock",
@@ -406,7 +406,7 @@ const headers = [
       "AMU",
       "FMRS",
       "Safety Stock",      // <-- TAMBAHKAN
-      "Remark Cov",
+      "Remark Supplier",
     ];
 
     const dataToExport = rows.map((row) => {

@@ -32,21 +32,25 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    // Gap utama diperkecil jadi gap-4
+    <div className="flex flex-col gap-4">
       
       {/* --- BARIS 1: Status & Tipe (2 Kolom Sejajar) --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Gap grid diperkecil jadi gap-4 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         
         {/* 1. Status Material (Pie Chart) */}
-        <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Status Material</h2>
-          <div className="h-72 w-full"> 
+        {/* Padding diperkecil jadi p-4 */}
+        <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col items-center">
+          <h2 className="text-base font-bold text-gray-800 mb-2 text-center w-full">Status Material</h2>
+          {/* Tinggi diperkecil jadi h-60 */}
+          <div className="h-60 w-full"> 
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={50} // Radius donat dikecilkan
+                  outerRadius={70} // Radius donat dikecilkan
                   paddingAngle={5}
                   dataKey="value"
                   label
@@ -56,18 +60,18 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend verticalAlign="bottom" height={36} />
+                {/* Legenda dikecilkan */}
+                <Legend verticalAlign="bottom" height={36} iconSize={10} wrapperStyle={{ fontSize: "12px" }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* 2. Material per Tipe (Stacked Chart) */}
-        <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Material per Tipe</h2>
-          <div className="h-72 w-full">
+        <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col items-center">
+          <h2 className="text-base font-bold text-gray-800 mb-2 text-center w-full">Status Material per Tipe</h2>
+          <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              {/* Di sini kita langsung pakai prop materialPerType dari page.tsx */}
               <BarChart data={materialPerType} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis 
@@ -77,12 +81,13 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
                   angle={-15} 
                   textAnchor="end"
                 />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip cursor={{ fill: '#f3f4f6' }} />
-                <Legend />
-                <Bar dataKey="shortage" stackId="a" fill={statusColors.shortage} name="Shortage" barSize={45} />
-                <Bar dataKey="preshortage" stackId="a" fill={statusColors.preshortage} name="Preshortage" barSize={45} />
-                <Bar dataKey="ok" stackId="a" fill={statusColors.ok} name="OK" barSize={45} radius={[4, 4, 0, 0]} />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: "12px" }} />
+                {/* Lebar batang disempitkan jadi barSize={25} */}
+                <Bar dataKey="shortage" stackId="a" fill={statusColors.shortage} name="Shortage" barSize={25} />
+                <Bar dataKey="preshortage" stackId="a" fill={statusColors.preshortage} name="Preshortage" barSize={25} />
+                <Bar dataKey="ok" stackId="a" fill={statusColors.ok} name="OK" barSize={25} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -90,10 +95,10 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
 
       </div>
 
-      {/* --- BARIS 2: Material per Vendor (Full Width / Penuh ke Samping) --- */}
-      <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col items-center w-full">
-        <h2 className="text-lg font-bold text-gray-800 mb-4 text-center w-full">Material per Vendor</h2>
-        <div className="h-72 w-full">
+      {/* --- BARIS 2: Material per Vendor (Sekarang Stacked Chart!) --- */}
+      <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col items-center w-full">
+        <h2 className="text-base font-bold text-gray-800 mb-2 text-center w-full">Status Material per Vendor</h2>
+        <div className="h-60 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={materialPerVendor} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
@@ -104,9 +109,13 @@ export default function ChartSection({ stats, materialPerType, materialPerVendor
                 angle={-15} 
                 textAnchor="end"
               />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ fill: '#f3f4f6' }} />
-              <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={45} />
+              <Legend iconSize={10} wrapperStyle={{ fontSize: "12px" }} />
+              {/* Lebar batang disempitkan jadi barSize={25} */}
+              <Bar dataKey="shortage" stackId="a" fill={statusColors.shortage} name="Shortage" barSize={25} />
+              <Bar dataKey="preshortage" stackId="a" fill={statusColors.preshortage} name="Preshortage" barSize={25} />
+              <Bar dataKey="ok" stackId="a" fill={statusColors.ok} name="OK" barSize={25} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

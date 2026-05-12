@@ -6,7 +6,7 @@ import { useAuthStore } from "@/lib/types";
 
 import StatCards from "./components/StatCards";
 import ChartSection from "./components/ChartSection";
-import DataTable from "./components/DataTable"; // Pastikan ini terpanggil di bawah
+import DataTable from "./components/DataTable";
 
 export default function DashboardRplPage() {
   const { role, companyName } = useAuthStore();
@@ -88,47 +88,55 @@ export default function DashboardRplPage() {
     return { shortage, preshortage, blocked, ok, total: filteredData.length };
   }, [filteredData, getMaterialStatus]);
 
-  // Data Charts: Modifikasi untuk mendukung Stacked Chart per Tipe
+  // Data Charts: Material per Tipe
   const materialPerType = useMemo(() => {
     const map: Record<string, { shortage: number; preshortage: number; ok: number }> = {};
     
     filteredData.forEach((m) => {
       const type = m.productType || "N/A";
       
-      // Inisialisasi struktur jika belum ada
       if (!map[type]) {
         map[type] = { shortage: 0, preshortage: 0, ok: 0 };
       }
 
-      // Hitung berdasarkan status
       const status = getMaterialStatus(m);
       if (status === "shortage") map[type].shortage++;
       else if (status === "preshortage") map[type].preshortage++;
       else if (status === "ok") map[type].ok++;
     });
     
-    // Ubah format object ke array untuk Recharts
     return Object.entries(map).map(([name, counts]) => ({ name, ...counts }));
   }, [filteredData, getMaterialStatus]);
 
+  // Data Charts: Material per Vendor
   const materialPerVendor = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, { shortage: number; preshortage: number; ok: number }> = {};
+    
     filteredData.forEach((m) => {
-      const vendor = m.vendorCode || "N/A";
-      map[vendor] = (map[vendor] || 0) + 1;
+      const vendor = String(m.vendorCode || "N/A").trim();
+      
+      if (!map[vendor]) {
+        map[vendor] = { shortage: 0, preshortage: 0, ok: 0 };
+      }
+
+      const status = getMaterialStatus(m);
+      if (status === "shortage") map[vendor].shortage++;
+      else if (status === "preshortage") map[vendor].preshortage++;
+      else if (status === "ok") map[vendor].ok++;
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [filteredData]);
+    
+    return Object.entries(map).map(([name, counts]) => ({ name, ...counts }));
+  }, [filteredData, getMaterialStatus]);
 
   if (isLoading) return <div className="p-4 text-center mt-10">Loading Data...</div>;
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-32 h-[calc(100vh-90px)] overflow-y-auto px-4 md:px-6">
+    <div className="flex flex-col gap-3 w-full pb-8 h-[calc(100vh-90px)] overflow-y-auto px-4 md:px-6">
       
       {/* HEADER & TOGGLE BUTTONS */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3 rounded-xl shadow-sm border">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">RPL Dashboard</h1>
+          <h1 className="text-lg font-bold text-gray-800">RPL Dashboard</h1>
           <p className="text-xs text-gray-500">Monitoring Stock & Vendor Performance</p>
         </div>
 
@@ -136,7 +144,7 @@ export default function DashboardRplPage() {
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => router.push("/dashboard-rpl")}
-            className={`px-3 py-1 text-sm rounded-md font-medium ${
+            className={`px-3 py-1 text-xs rounded-md font-medium ${
               pathname === "/dashboard-rpl" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
@@ -144,7 +152,7 @@ export default function DashboardRplPage() {
           </button>
           <button
             onClick={() => router.push("/dashboard-supplier")}
-            className={`px-3 py-1 text-sm rounded-md font-medium ${
+            className={`px-3 py-1 text-xs rounded-md font-medium ${
               pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
@@ -154,17 +162,17 @@ export default function DashboardRplPage() {
       </div>
 
       {/* FILTER SECTION */}
-      <div className="flex flex-wrap gap-2 bg-white p-4 rounded-xl border shadow-sm">
+      <div className="flex flex-wrap gap-2 bg-white p-3 rounded-xl border shadow-sm">
         <input
           type="text"
           placeholder="Cari Material..."
-          className="text-sm border p-2 rounded-md flex-1 min-w-[150px] outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-xs border py-1.5 px-3 rounded-md flex-1 min-w-[150px] outline-none focus:ring-2 focus:ring-blue-500"
           value={filterMaterial}
           onChange={(e) => setFilterMaterial(e.target.value)}
         />
 
         <select
-          className="text-sm border p-2 rounded-md outline-none bg-white"
+          className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white"
           value={filterVendor}
           onChange={(e) => setFilterVendor(e.target.value)}
         >
@@ -175,7 +183,7 @@ export default function DashboardRplPage() {
         </select>
 
         <select
-          className="text-sm border p-2 rounded-md outline-none bg-white"
+          className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
         >
@@ -189,7 +197,7 @@ export default function DashboardRplPage() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded-lg px-4 py-2 text-sm bg-white cursor-pointer"
+          className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white cursor-pointer"
         >
           <option value="Semua Tipe">Semua Tipe</option>
           <option value="special">Special</option>
@@ -200,7 +208,6 @@ export default function DashboardRplPage() {
 
       <StatCards stats={stats} />
       
-      {/* Melempar materials={filteredData} agar ChartSection bisa mengolah jika diperlukan */}
       <ChartSection 
         stats={stats} 
         materialPerType={materialPerType} 
