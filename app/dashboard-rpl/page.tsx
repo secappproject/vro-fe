@@ -77,16 +77,35 @@ export default function DashboardRplPage() {
 
   // Statistik
   const stats = useMemo(() => {
-    let shortage = 0, preshortage = 0, blocked = 0, ok = 0;
-    filteredData.forEach((m) => {
-      const s = getMaterialStatus(m);
-      if (s === "shortage") shortage++;
-      else if (s === "preshortage") preshortage++;
-      else if (s === "blocked") blocked++;
-      else ok++;
-    });
-    return { shortage, preshortage, blocked, ok, total: filteredData.length };
-  }, [filteredData, getMaterialStatus]);
+  let shortage = 0, preshortage = 0, blocked = 0, ok = 0;
+  let totalOpenPO = 0;           
+  let totalVendorStock = 0;      
+
+  filteredData.forEach((m) => {
+    const s = getMaterialStatus(m);
+    if (s === "shortage") shortage++;
+    else if (s === "preshortage") preshortage++;
+    else if (s === "blocked") blocked++;
+    else ok++;
+
+    totalOpenPO += Number(m.openPO ?? 0);
+    totalVendorStock += Number(m.vendorStock ?? 0);
+  });
+
+if (filteredData.length > 0) {
+  console.log("FIELD NAMES dalam material:", Object.keys(filteredData[0]));
+  console.log("Isi lengkap material:", filteredData[0]);
+}
+  return { 
+    shortage, 
+    preshortage, 
+    blocked, 
+    ok, 
+    total: filteredData.length, 
+    OpenPO: totalOpenPO, 
+    VendorStock: totalVendorStock 
+  };
+}, [filteredData, getMaterialStatus]);
 
   // Data Charts: Material per Tipe
   const materialPerType = useMemo(() => {

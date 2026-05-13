@@ -440,7 +440,7 @@ export const getMaterialColumns = (
     filterFn: exactFilterFn,
   },
   {
-    accessorKey: "warningStatus",
+    accessorKey: "Remark Supplier",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Remark Supplier" />
     ),

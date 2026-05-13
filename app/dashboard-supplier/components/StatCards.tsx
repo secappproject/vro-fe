@@ -4,7 +4,7 @@ import React from "react";
 
 export default function StatCards({ stats }: any) {
   const cards = [
-    { label: "WARNING", value: stats.warning || 0, unit: "Materials", color: "border-l-yellow-500 text-yellow-600" },
+    { label: "CRITICAL", value: stats.critical || 0, unit: "Materials", color: "border-l-red-500 text-red-600" },
     { label: "BLOCKED", value: stats.blocked || 0, unit: "Materials", color: "border-l-orange-500 text-orange-600" },
     { label: "TOTAL ITEMS", value: stats.total || 0, unit: "Materials", color: "border-l-green-500 text-green-600" },
     { label: "OPEN PO Qty", value: stats.openpo || 0, unit: "PO", color: "border-l-blue-500 text-blue-600" },

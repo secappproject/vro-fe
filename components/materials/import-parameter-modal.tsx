@@ -108,7 +108,7 @@ const handleDownloadTemplate = () => {
         const data = results.data as Record<string, string>[];
         const fields = (results.meta.fields || []).map((f) => f.trim());
         
-        const requiredHeaders = ["Material Code", "AMU", "FMRS"];
+        const requiredHeaders = ["Material Code", "AMU QTY", "FMRS"];
         const missingHeaders = requiredHeaders.filter(h => !fields.includes(h));
 
         if (missingHeaders.length > 0) {
@@ -124,7 +124,7 @@ const handleDownloadTemplate = () => {
            const code = row["Material Code"]?.trim();
            if (!code) return; 
 
-           const rawAMU = row["AMU"]?.trim();
+           const rawAMU = row["AMU QTY"]?.trim();
            const rawFMRS = row["FMRS"]?.trim()?.toUpperCase();
 
            let amuValue: number | undefined;

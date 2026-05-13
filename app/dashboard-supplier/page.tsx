@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/types";
-import StatCards from "./components/StatCards";
+import StatCards from "../dashboard-rpl/components/StatCards";
 import ChartSectionSupplier from "./components/ChartSection";
 import DataTable from "./components/DataTable";
 
@@ -63,17 +63,33 @@ export default function DashboardSupplierPage() {
     });
   }, [materials, filterVendor, filterStatus, filterMaterial, filterFmrs, getSupplierStatus]);
 
-  // Statistik
+  // Statistik (SAMA SEPERTI RPL, tapi dengan critical, warning, safe)
   const stats = useMemo(() => {
     let critical = 0, warning = 0, blocked = 0, safe = 0;
+    let totalOpenPO = 0;
+    let totalVendorStock = 0;
+
     filteredData.forEach((m) => {
       const s = getSupplierStatus(m);
       if (s === "critical") critical++;
       else if (s === "warning") warning++;
       else if (s === "blocked") blocked++;
       else safe++;
+
+      // Tambahkan OpenPO dan VendorStock (SAMA KAYAK RPL)
+      totalOpenPO += Number(m.openPO ?? 0);
+      totalVendorStock += Number(m.vendorStock ?? 0);
     });
-    return { critical, warning, blocked, safe, total: filteredData.length };
+
+    return { 
+      critical, 
+      warning, 
+      blocked, 
+      safe, 
+      total: filteredData.length,
+      OpenPO: totalOpenPO,
+      VendorStock: totalVendorStock
+    };
   }, [filteredData, getSupplierStatus]);
 
   // Chart data FMRS
@@ -109,22 +125,19 @@ export default function DashboardSupplierPage() {
   if (isLoading) return <div className="p-4 text-center mt-10">Loading Supplier Stock Data...</div>;
 
   return (
-    // DIUBAH: gap-4 jadi gap-3 biar merapat
     <div className="flex flex-col gap-3 w-full pb-8 h-[calc(100vh-90px)] overflow-y-auto px-4 md:px-6">
       
       {/* HEADER & TOGGLE BUTTONS */}
-      {/* DIUBAH: p-4 jadi p-3 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3 rounded-xl shadow-sm border">
         <div>
-          {/* DIUBAH: text-xl jadi text-lg */}
           <h1 className="text-lg font-bold text-gray-800">Dashboard Supplier Stock</h1>
+          <p className="text-xs text-gray-500">Monitoring Stock & Vendor Performance</p>
         </div>
 
         {/* TOGGLE WHS STOCK / SUPPLIER STOCK */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => router.push("/dashboard-rpl")}
-            // DIUBAH: text-sm jadi text-xs
             className={`px-3 py-1 text-xs rounded-md font-medium ${
               pathname === "/dashboard-rpl" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
@@ -133,7 +146,6 @@ export default function DashboardSupplierPage() {
           </button>
           <button
             onClick={() => router.push("/dashboard-supplier")}
-            // DIUBAH: text-sm jadi text-xs
             className={`px-3 py-1 text-xs rounded-md font-medium ${
               pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
@@ -144,19 +156,16 @@ export default function DashboardSupplierPage() {
       </div>
 
       {/* FILTER SECTION */}
-      {/* DIUBAH: p-4 jadi p-3 */}
       <div className="flex flex-wrap gap-2 bg-white p-3 rounded-xl border shadow-sm">
         <input
           type="text"
           placeholder="Cari Material..."
-          // DIUBAH: p-2 jadi py-1.5 px-3, text-sm jadi text-xs
           className="text-xs border py-1.5 px-3 rounded-md flex-1 min-w-[150px] outline-none focus:ring-2 focus:ring-blue-500"
           value={filterMaterial}
           onChange={(e) => setFilterMaterial(e.target.value)}
         />
 
         <select
-          // DIUBAH: p-2 jadi py-1.5 px-3, text-sm jadi text-xs
           className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white"
           value={filterVendor}
           onChange={(e) => setFilterVendor(e.target.value)}
@@ -168,20 +177,18 @@ export default function DashboardSupplierPage() {
         </select>
 
         <select
-          // DIUBAH: p-2 jadi py-1.5 px-3, text-sm jadi text-xs
           className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
         >
           <option value="all">Semua Status</option>
-          <option value="critical">Critical </option>
-          <option value="warning">Warning </option>
-          <option value="safe">Safe </option>
+          <option value="critical">Critical</option>
+          <option value="warning">Warning</option>
+          <option value="safe">Safe</option>
           <option value="blocked">Blocked</option>
         </select>
 
         <select
-          // DIUBAH: p-2 jadi py-1.5 px-3, text-sm jadi text-xs
           className="text-xs border py-1.5 px-3 rounded-md outline-none bg-white"
           value={filterFmrs}
           onChange={(e) => setFilterFmrs(e.target.value)}
@@ -194,12 +201,15 @@ export default function DashboardSupplierPage() {
         </select>
       </div>
 
+      {/* STAT CARDS - PAKAI YANG SAMA DENGAN RPL */}
       <StatCards stats={stats} />
+      
       <ChartSectionSupplier 
         stats={stats} 
         materialPerVendor={materialPerVendor}
         materials={filteredData} 
       />
+      
     </div>
   );
 }
