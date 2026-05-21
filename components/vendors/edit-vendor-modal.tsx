@@ -75,7 +75,7 @@ export function EditVendorModal({
       const payload = {
         companyName,
         vendorType: finalVendorType,
-        email: email,
+        email: email.trim(),
       };
 
       const response = await fetch(
@@ -174,14 +174,14 @@ export function EditVendorModal({
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="vendor@company.com"
+            placeholder="vendor1@company.com; vendor2@company.com"
             disabled={isReadOnly}
           />
           <p className="text-xs text-muted-foreground">
-            Email akan digunakan untuk mengirim notifikasi stok menipis
+            Bisa masukkan lebih dari 1 email, pisahkan dengan titik koma (;)
           </p>
         </div>
       </div>

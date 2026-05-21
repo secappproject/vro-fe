@@ -7,7 +7,7 @@ export default function StatCards({ stats }: any) {
     { label: "CRITICAL", value: stats.critical || 0, unit: "Materials", color: "border-l-red-500 text-red-600" },
     { label: "BLOCKED", value: stats.blocked || 0, unit: "Materials", color: "border-l-orange-500 text-orange-600" },
     { label: "TOTAL ITEMS", value: stats.total || 0, unit: "Materials", color: "border-l-green-500 text-green-600" },
-    { label: "OPEN PO Qty", value: stats.openpo || 0, unit: "PO", color: "border-l-blue-500 text-blue-600" },
+    { label: "VENDOR SS QTY", value: stats.vendorSSQty || 0, unit: "Pcs", color: "border-l-blue-500 text-blue-600" },
     { label: "VENDOR STOCK", value: stats.vendorStock || 0, unit: "Pcs", color: "border-l-purple-500 text-purple-600" }, 
   ];
 

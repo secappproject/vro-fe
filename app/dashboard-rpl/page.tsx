@@ -172,10 +172,10 @@ if (filteredData.length > 0) {
           <button
             onClick={() => router.push("/dashboard-supplier")}
             className={`px-3 py-1 text-xs rounded-md font-medium ${
-              pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
+              pathname === "/dashboard-Vendor" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
-            Supplier Stock
+            Vendor Stock
           </button>
         </div>
       </div>

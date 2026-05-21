@@ -102,14 +102,18 @@ export default function ChartSectionSupplier({ stats, materialPerVendor, materia
       {/* --- BARIS 2: Material per Vendor --- */}
       <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col items-center w-full">
         <h2 className="text-base font-bold text-gray-800 mb-2 text-center w-full">Status Material per Vendor</h2>
-        <div className="h-60 w-full">
+        <div className="h-[450px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={materialPerVendor} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+            <BarChart data={materialPerVendor} margin={{ top: 10, right: 10, left: -20, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-25} textAnchor="end" height={100} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ fill: '#f3f4f6' }} />
-              <Legend iconSize={10} wrapperStyle={{ fontSize: "12px" }} />
+              <Legend 
+                  iconSize={10} 
+                  wrapperStyle={{fontSize: "12px" }} 
+                  verticalAlign="bottom"
+                />
               <Bar dataKey="critical" stackId="a" fill={statusColors.critical} name="Critical" barSize={25} />
               <Bar dataKey="warning" stackId="a" fill={statusColors.warning} name="Warning" barSize={25} />
               <Bar dataKey="safe" stackId="a" fill={statusColors.safe} name="Safe" barSize={25} radius={[4, 4, 0, 0]} />

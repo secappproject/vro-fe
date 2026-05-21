@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/types";
-import StatCards from "../dashboard-rpl/components/StatCards";
+import StatCards from "./components/StatCards";
 import ChartSectionSupplier from "./components/ChartSection";
 import DataTable from "./components/DataTable";
 
@@ -66,7 +66,7 @@ export default function DashboardSupplierPage() {
   // Statistik (SAMA SEPERTI RPL, tapi dengan critical, warning, safe)
   const stats = useMemo(() => {
     let critical = 0, warning = 0, blocked = 0, safe = 0;
-    let totalOpenPO = 0;
+    let totalVendorSS = 0;
     let totalVendorStock = 0;
 
     filteredData.forEach((m) => {
@@ -77,7 +77,7 @@ export default function DashboardSupplierPage() {
       else safe++;
 
       // Tambahkan OpenPO dan VendorStock (SAMA KAYAK RPL)
-      totalOpenPO += Number(m.openPO ?? 0);
+      totalVendorSS += Number(m.ss ?? 0);
       totalVendorStock += Number(m.vendorStock ?? 0);
     });
 
@@ -87,7 +87,7 @@ export default function DashboardSupplierPage() {
       blocked, 
       safe, 
       total: filteredData.length,
-      OpenPO: totalOpenPO,
+      vendorSSQty: totalVendorSS,
       VendorStock: totalVendorStock
     };
   }, [filteredData, getSupplierStatus]);
@@ -147,10 +147,10 @@ export default function DashboardSupplierPage() {
           <button
             onClick={() => router.push("/dashboard-supplier")}
             className={`px-3 py-1 text-xs rounded-md font-medium ${
-              pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
+              pathname === "/dashboard-Vendor" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
-            Supplier Stock
+            Vendor Stock
           </button>
         </div>
       </div>

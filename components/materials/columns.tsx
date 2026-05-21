@@ -399,7 +399,7 @@ export const getMaterialColumns = (
   {
     accessorKey: "ss",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Safety Stock" />
+      <DataTableColumnHeader column={column} title="Vendor SS Qty" />
     ),
     cell: ({ row }) => {
       const ss = row.original.ss;
@@ -440,9 +440,9 @@ export const getMaterialColumns = (
     filterFn: exactFilterFn,
   },
   {
-    accessorKey: "Remark Supplier",
+    accessorKey: "Remark Vendor",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Remark Supplier" />
+      <DataTableColumnHeader column={column} title="Remark Vendor" />
     ),
     cell: ({ row }) => {
       const status = row.original.warningStatus;

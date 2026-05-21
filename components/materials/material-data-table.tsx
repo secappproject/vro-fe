@@ -405,8 +405,8 @@ const headers = [
       "Rincian Stok Bin",
       "AMU",
       "FMRS",
-      "Safety Stock",      // <-- TAMBAHKAN
-      "Remark Supplier",
+      "Vendor SS Qty",      
+      "Remark Vendor",
     ];
 
     const dataToExport = rows.map((row) => {
