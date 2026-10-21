@@ -14,6 +14,7 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { User, useAuthStore } from "@/lib/types";
+import { isVendorRole, isViewerRole } from "@/lib/roles";
 import { DeleteUserAlert } from "./delete-user-alert";
 import { EditUserModal } from "./edit-user-modal";
 
@@ -35,11 +36,11 @@ export function DataTableRowActions({
 
   const isSelf = currentUser === user.username;
 
-  if (authRole === "Viewer") {
+  if (isViewerRole(authRole)) {
     return null;
   }
 
-  const isReadOnly = authRole === "Admin" || authRole === "Vendor";
+  const isReadOnly = authRole === "Admin" || isVendorRole(authRole);
 
   return (
     <>

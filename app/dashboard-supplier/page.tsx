@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/types";
+import { isInternalRole, isSupermarketRole, stockLabelsForView } from "@/lib/roles";
+import { useWarehouseView, filterByWarehouse } from "@/lib/warehouse-view";
+import { WarehouseViewToggle } from "@/components/warehouse-view-toggle";
 import StatCards from "./components/StatCards";
 import ChartSectionSupplier from "./components/ChartSection";
 import DataTable from "./components/DataTable";
@@ -14,8 +17,23 @@ export default function DashboardSupplierPage() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Internal (Superuser/Admin/Viewer): dashboard dipisah per gudang (WHS SEC / Supermarket),
+  // pilihan dipakai bersama dengan Rpl. Stock Monitoring.
+  const isInternal = isInternalRole(role);
+  const warehouseView = useWarehouseView((s) => s.view);
+  const showSupermarket = isSupermarketRole(role) || (isInternal && warehouseView === "supermarket");
+  const labels = stockLabelsForView(showSupermarket);
+  const scopedMaterials = useMemo(
+    () => (isInternal ? filterByWarehouse(materials, warehouseView) : materials),
+    [isInternal, materials, warehouseView]
+  );
+
   // Filter states
   const [filterVendor, setFilterVendor] = useState("all");
+  // Vendor yang dipilih bisa tidak ada di gudang lain; reset saat ganti gudang.
+  useEffect(() => {
+    setFilterVendor("all");
+  }, [warehouseView]);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMaterial, setFilterMaterial] = useState("");
   const [filterFmrs, setFilterFmrs] = useState("all");
@@ -54,14 +72,14 @@ export default function DashboardSupplierPage() {
 
   // Filtering
   const filteredData = useMemo(() => {
-    return materials.filter((m) => {
+    return scopedMaterials.filter((m) => {
       const matchVendor = filterVendor === "all" || (m.vendorCode || "") === filterVendor;
       const matchStatus = filterStatus === "all" || getSupplierStatus(m) === filterStatus;
       const matchMaterial = (m.material || "").toLowerCase().includes(filterMaterial.toLowerCase());
       const matchFmrs = filterFmrs === "all" || (m.fmrs || "") === filterFmrs;
       return matchVendor && matchStatus && matchMaterial && matchFmrs;
     });
-  }, [materials, filterVendor, filterStatus, filterMaterial, filterFmrs, getSupplierStatus]);
+  }, [scopedMaterials, filterVendor, filterStatus, filterMaterial, filterFmrs, getSupplierStatus]);
 
   // Statistik (SAMA SEPERTI RPL, tapi dengan critical, warning, safe)
   const stats = useMemo(() => {
@@ -130,8 +148,9 @@ export default function DashboardSupplierPage() {
       {/* HEADER & TOGGLE BUTTONS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3 rounded-xl shadow-sm border">
         <div>
-          <h1 className="text-lg font-bold text-gray-800">Dashboard Supplier Stock</h1>
+          <h1 className="text-lg font-bold text-gray-800">Dashboard {showSupermarket ? "Schneider" : "Supplier"} Stock</h1>
           <p className="text-xs text-gray-500">Monitoring Stock & Vendor Performance</p>
+          {isInternal && <WarehouseViewToggle materials={materials} className="mt-2" />}
         </div>
 
         {/* TOGGLE WHS STOCK / SUPPLIER STOCK */}
@@ -147,10 +166,10 @@ export default function DashboardSupplierPage() {
           <button
             onClick={() => router.push("/dashboard-supplier")}
             className={`px-3 py-1 text-xs rounded-md font-medium ${
-              pathname === "/dashboard-Vendor" ? "bg-blue-600 text-white" : "text-gray-600"
+              pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
-            Vendor Stock
+            {labels.vendorStock}
           </button>
         </div>
       </div>
@@ -171,7 +190,7 @@ export default function DashboardSupplierPage() {
           onChange={(e) => setFilterVendor(e.target.value)}
         >
           <option value="all">Semua Vendor</option>
-          {[...new Set(materials.map((m) => m.vendorCode).filter(Boolean))].sort().map((v) => (
+          {[...new Set(scopedMaterials.map((m) => m.vendorCode).filter(Boolean))].sort().map((v) => (
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
@@ -202,7 +221,7 @@ export default function DashboardSupplierPage() {
       </div>
 
       {/* STAT CARDS - PAKAI YANG SAMA DENGAN RPL */}
-      <StatCards stats={stats} />
+      <StatCards stats={stats} vendorStockLabel={labels.vendorStock} />
       
       <ChartSectionSupplier 
         stats={stats} 

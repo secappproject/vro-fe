@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { LayoutGrid, Truck, PackageCheck, User, PencilRuler, Building2, WatchIcon, CalendarArrowDown, ToolCase, LayoutDashboard } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/lib/types";
+import { isVendorRole } from "@/lib/roles";
+import { allowedRolesFor } from "@/lib/routes";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -15,30 +17,37 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { username, role, companyName } = useAuthStore();
 
+  // Role per menu diambil dari lib/routes.ts (dipakai juga oleh penjaga halaman).
   const allNavLinks = [
-    { 
-      href: "/materials", 
-      label: "Rpl. Stock Monitoring", 
-      icon: ToolCase, 
-      allowedRoles: ['Superuser', 'Admin', 'Vendor', 'Viewer']
+    {
+      href: "/materials",
+      label: "Rpl. Stock Monitoring",
+      icon: ToolCase,
+      allowedRoles: allowedRolesFor("/materials")
     },
-    { 
-      href: "/dashboard-rpl", 
-      label: "Dashboard Summary", 
-      icon: LayoutDashboard, 
-      allowedRoles: ['Superuser', 'Admin', 'Vendor', 'Viewer'] 
+    {
+      href: "/dashboard-rpl",
+      label: "Dashboard Summary",
+      icon: LayoutDashboard,
+      allowedRoles: allowedRolesFor("/dashboard-rpl")
     },
-    { 
-      href: "/vendors", 
-      label: "Vendor", 
-      icon: Building2, 
-      allowedRoles: ['Superuser', 'Admin']
+    {
+      href: "/dashboard-busbar",
+      label: "Dashboard Busbar",
+      icon: LayoutDashboard,
+      allowedRoles: allowedRolesFor("/dashboard-busbar")
     },
-    { 
-      href: "/profile", 
-      label: "User", 
-      icon: User, 
-      allowedRoles: ['Superuser', 'Admin', 'Vendor', 'Viewer']
+    {
+      href: "/vendors",
+      label: "Vendor",
+      icon: Building2,
+      allowedRoles: allowedRolesFor("/vendors")
+    },
+    {
+      href: "/profile",
+      label: "User",
+      icon: User,
+      allowedRoles: allowedRolesFor("/profile")
     },
   ];
 
@@ -46,8 +55,10 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "G";
   
-  const displayName = role === 'Vendor' ? companyName : username;
-  const displayRole = role === 'Vendor' ? `Vendor (${companyName})` : role;
+  const isVendorType = isVendorRole(role);
+
+  const displayName = isVendorType ? companyName : username;
+  const displayRole = isVendorType ? `${role} (${companyName})` : role;
 
 
   return (

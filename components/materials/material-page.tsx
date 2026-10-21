@@ -3,6 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Material, useAuthStore } from "@/lib/types";
+import {
+  isVendorRole,
+  isSupermarketRole,
+  isInternalRole,
+  stockLabelsForView,
+} from "@/lib/roles";
+import { useWarehouseView, filterByWarehouse } from "@/lib/warehouse-view";
+import { WarehouseViewToggle } from "@/components/warehouse-view-toggle";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 
@@ -26,6 +34,8 @@ export function MaterialPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isVendorImportOpen, setIsVendorImportOpen] = useState(false); 
   const [isAmuFmrsImportOpen, setIsAmuFmrsImportOpen] = useState(false);
+  // Pilihan gudang (WHS SEC / Supermarket) untuk role internal, dipakai bersama dashboard.
+  const warehouseView = useWarehouseView((s) => s.view);
 
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false); 
   const [remarkBlock, setRemarkBlock] = useState(""); 
@@ -96,14 +106,28 @@ export function MaterialPage() {
     getMaterialData();
   };
 
+  // Internal (Superuser/Admin/Viewer) melihat dua jenis gudang sekaligus. Supaya
+  // header kolom selalu benar, tabelnya dipisah: "WHS SEC" atau "Supermarket".
+  const isInternal = isInternalRole(role);
+  const showSupermarket =
+    isSupermarketRole(role) || (isInternal && warehouseView === "supermarket");
+  const labels = stockLabelsForView(showSupermarket);
+  const visibleData = isInternal
+    ? filterByWarehouse(data, warehouseView)
+    : data;
+
   const columns = getMaterialColumns(
     handleMaterialUpdated,
-    handleMaterialDeleted
+    handleMaterialDeleted,
+    labels
   );
-  
-  const canScan = role === "Superuser" || role === "Admin";
-  const canImportMaster = role === "Superuser"; 
-  const canImportVendorStock = role === "Superuser"  || role === "Vendor";
+
+  // Vendor supermarket scan in/out sendiri di gudangnya.
+  const canScan = role === "Superuser" || role === "Admin" || isSupermarketRole(role);
+  const canImportMaster = role === "Superuser";
+  // Schneider Stock & Open PO untuk supermarket diisi SEC, jadi import supplier stock disembunyikan.
+  const canImportVendorStock =
+    role === "Superuser" || (isVendorRole(role) && !isSupermarketRole(role));
   const canAdd = role === "Superuser";
 
   if (!isClient || !role) {
@@ -121,6 +145,9 @@ export function MaterialPage() {
           <p className="text-muted-foreground font-light mt-1">
             Vendor Managed Inventory (VMI)
           </p>
+          {isInternal && (
+            <WarehouseViewToggle materials={data} className="mt-3" />
+          )}
         </div>
 
         <div className="flex flex-col md:flex-row gap-2">
@@ -180,7 +207,9 @@ export function MaterialPage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <MaterialDataTable columns={columns} data={data} />
+        {/* key: reset centang/filter tabel saat ganti gudang, supaya pilihan baris
+            (yang berbasis urutan) tidak nyasar ke material di tampilan lain. */}
+        <MaterialDataTable key={warehouseView} columns={columns} data={visibleData} labels={labels} />
       </div>
 
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>

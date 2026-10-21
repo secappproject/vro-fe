@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Material, useAuthStore, StockMovement } from "@/lib/types";
+import { stockLabels, type StockLabels } from "@/lib/roles";
 import { Input } from "@/components/ui/input";
 import { 
   UnfoldHorizontalIcon, 
@@ -71,6 +72,8 @@ interface DataTableProps<TData extends Material, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onDataChanged?: () => void; 
+  /** Label kolom untuk file Extract Data; default mengikuti role login. */
+  labels?: StockLabels;
 }
 
 interface LastDownloadInfo {
@@ -83,7 +86,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 export function MaterialDataTable<TData extends Material, TValue>({
   columns,
   data,
-  onDataChanged
+  onDataChanged,
+  labels
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -390,10 +394,10 @@ const headers = [
       "Deskripsi",
       "SoH (Total Stok)",
       "Replenishment (Bin Kosong)",
-      "Remark SEC", 
+      (labels ?? stockLabels(role)).remark,
       "Alasan Blokir", 
       "Vendor",
-      "Vendor Stock",
+      (labels ?? stockLabels(role)).vendorStock,
       "Open PO",
       "Lokasi",
       "Tipe",
@@ -406,7 +410,7 @@ const headers = [
       "AMU",
       "FMRS",
       "Vendor SS Qty",      
-      "Remark Vendor",
+      (labels ?? stockLabels(role)).remarkVendor,
     ];
 
     const dataToExport = rows.map((row) => {

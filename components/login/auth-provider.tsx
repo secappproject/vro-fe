@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/types';
+import { canAccessPath, HOME_PATH } from '@/lib/routes';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const role = useAuthStore((state) => state.role);
   const router = useRouter();
   const pathname = usePathname();
   
@@ -15,6 +17,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Role yang sudah login tapi membuka halaman di luar haknya (mis. viewer busbar
+  // mengetik /vendors langsung di URL). Aturannya di lib/routes.ts.
+  const isForbiddenPage = isLoggedIn && pathname !== '/login' && !canAccessPath(role, pathname);
 
   useEffect(() => {
     
@@ -27,7 +33,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       
       router.replace('/'); 
     }
-  }, [isLoggedIn, pathname, router, isMounted]);
+    else if (isForbiddenPage) {
+      router.replace(HOME_PATH);
+    }
+  }, [isLoggedIn, pathname, router, isMounted, isForbiddenPage]);
 
   
   
@@ -42,6 +51,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   
   if (!isLoggedIn && pathname !== '/login') {
       return null; 
+  }
+
+  // Jangan tampilkan halaman terlarang sesaat sebelum redirect selesai.
+  if (isForbiddenPage) {
+      return null;
   }
 
   return <>{children}</>;

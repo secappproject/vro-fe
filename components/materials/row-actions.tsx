@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Material, useAuthStore } from "@/lib/types";
+import { isViewerRole } from "@/lib/roles";
 import { DeleteMaterialAlert } from "../materials/delete-material-alert";
 import { EditMaterialModal } from "../materials/edit-material-modal";
 
@@ -42,11 +43,14 @@ export function MaterialDataTableRowActions({
   const { role, companyName } = useAuthStore(); 
   const router = useRouter(); 
 
-  if (role === "Viewer") {
+  if (isViewerRole(role)) {
     return null;
   }
 
   const isSuperuser = role === "Superuser";
+  // Block/unblock material hanya boleh oleh internal Schneider (Superuser/Admin),
+  // sesuai auth backend (AdminOrSuperuserAuthMiddleware). Vendor tidak boleh.
+  const canBlockUnblock = role === "Superuser" || role === "Admin";
   const isBlocked = material.productType === "block";
 
   const handleViewHistory = () => {
@@ -101,19 +105,21 @@ export function MaterialDataTableRowActions({
             Lihat Histori Stok
           </DropdownMenuItem>
 
-          <DropdownMenuItem onSelect={handleToggleBlock}>
-            {isBlocked ? (
-                <>
-                    <Undo2 className="mr-2 h-4 w-4 text-green-600" />
-                    Unblock Material
-                </>
-            ) : (
-                <>
-                    <Ban className="mr-2 h-4 w-4 text-orange-600" />
-                    Block Material
-                </>
-            )}
-          </DropdownMenuItem>
+          {canBlockUnblock && (
+            <DropdownMenuItem onSelect={handleToggleBlock}>
+              {isBlocked ? (
+                  <>
+                      <Undo2 className="mr-2 h-4 w-4 text-green-600" />
+                      Unblock Material
+                  </>
+              ) : (
+                  <>
+                      <Ban className="mr-2 h-4 w-4 text-orange-600" />
+                      Block Material
+                  </>
+              )}
+            </DropdownMenuItem>
+          )}
 
           <DropdownMenuSeparator />
 

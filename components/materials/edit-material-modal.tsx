@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useAuthStore, Material, MaterialBin } from "@/lib/types";
+import { isVendorRole, isViewerRole, isSupermarketRole, stockLabels } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -57,6 +58,7 @@ export function EditMaterialModal({
   const [isLoading, setIsLoading] = useState(false);
   const authRole = useAuthStore((state) => state.role);
   const authUsername = useAuthStore((state) => state.username);
+  const authCompany = useAuthStore((state) => state.companyName);
 
   const [vendors, setVendors] = useState<string[]>([]);
 
@@ -114,9 +116,12 @@ export function EditMaterialModal({
     material.bins ? JSON.parse(JSON.stringify(material.bins)) : []
   );
 
-  const isViewer = authRole === "Viewer";
-  const isGeneralInfoRestricted = authRole === "Admin" || authRole === "Vendor";
-  const isVendor = authRole === "Vendor";
+  const isViewer = isViewerRole(authRole);
+  const isGeneralInfoRestricted = authRole === "Admin" || isVendorRole(authRole);
+  const isVendor = isVendorRole(authRole);
+  // Schneider Stock & Open PO untuk vendor supermarket diisi SEC, jadi dikunci.
+  const isStockLockedForRole = isSupermarketRole(authRole);
+  const vendorStockLabel = stockLabels(authRole).vendorStock;
 
   useEffect(() => {
     const fetchVendors = async () => {
@@ -470,6 +475,10 @@ export function EditMaterialModal({
           headers: {
             "Content-Type": "application/json",
             "X-User-Role": authRole || "",
+            // Wajib untuk role vendor: backend memakai company ini sebagai pemilik
+            // material. Dulu tidak dikirim, sehingga edit oleh vendor mengosongkan
+            // nama vendor pada material.
+            "X-User-Company": authCompany || "",
           },
           body: JSON.stringify(payload),
         }
@@ -629,7 +638,7 @@ export function EditMaterialModal({
         {}
         <div className="grid grid-cols-4 items-start gap-4 mb-4">
           <Label htmlFor="vendorStock" className="text-left pt-2">
-            Vendor Stock
+            {vendorStockLabel}
           </Label>
           <div className="col-span-3">
             <Input
@@ -649,7 +658,7 @@ export function EditMaterialModal({
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
-              disabled={isViewer}
+              disabled={isViewer || isStockLockedForRole}
 
             />
             {errors.vendorStock && (
@@ -660,7 +669,7 @@ export function EditMaterialModal({
             {stockHasChanged &&
               nVendorStock !== (material.vendorStock ?? 0) && (
                 <p className="text-xs text-destructive mt-1">
-                  Vendor Stock berubah. PIC wajib diisi.
+                  {vendorStockLabel} berubah. PIC wajib diisi.
                 </p>
               )}
           </div>
@@ -760,7 +769,7 @@ export function EditMaterialModal({
                   ? "border-destructive focus-visible:ring-destructive"
                   : ""
               }
-              disabled={isViewer}
+              disabled={isViewer || isStockLockedForRole}
             />
              {}
           </div>
@@ -975,7 +984,7 @@ export function EditMaterialModal({
             >
               {nCurrentQuantity}
             </span>{" "}
-            | Vendor Stock:{" "}
+            | {vendorStockLabel}:{" "}
             <span
               className={`font-bold ${
                 stockHasChanged && nVendorStock !== (material.vendorStock ?? 0)

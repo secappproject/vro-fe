@@ -145,19 +145,33 @@ export function VendorDataTable<TData extends Vendor, TValue>({
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      
+      // Vendor yang masih dipakai material/user ditolak backend (409). Dulu jawaban
+      // backend diabaikan, jadi vendor yang gagal dihapus tidak ketahuan alasannya.
+      const failures: string[] = [];
+
       // Loop delete
       for (const id of idsToDelete) {
-        await fetch(`${apiUrl}/api/vendors/${id}`, {
+        const res = await fetch(`${apiUrl}/api/vendors/${id}`, {
           method: "DELETE",
           headers: {
              "X-User-Role": role || "",
           }
         });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          failures.push(body?.error || `Vendor id ${id} gagal dihapus (HTTP ${res.status}).`);
+        }
+      }
+
+      if (failures.length > 0) {
+        alert(
+          `${idsToDelete.length - failures.length} dari ${idsToDelete.length} vendor berhasil dihapus.\n\n` +
+            `Tidak dihapus:\n- ${failures.join("\n- ")}`
+        );
       }
 
       setRowSelection({});
-      window.location.reload(); 
+      window.location.reload();
       
     } catch (error) {
       console.error("Gagal menghapus data", error);

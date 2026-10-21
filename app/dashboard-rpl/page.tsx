@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/types";
+import { isInternalRole, isSupermarketRole, stockLabelsForView } from "@/lib/roles";
+import { useWarehouseView, filterByWarehouse } from "@/lib/warehouse-view";
+import { WarehouseViewToggle } from "@/components/warehouse-view-toggle";
 
 import StatCards from "./components/StatCards";
 import ChartSection from "./components/ChartSection";
@@ -15,8 +18,23 @@ export default function DashboardRplPage() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Internal (Superuser/Admin/Viewer): dashboard dipisah per gudang (WHS SEC / Supermarket),
+  // pilihan dipakai bersama dengan Rpl. Stock Monitoring.
+  const isInternal = isInternalRole(role);
+  const warehouseView = useWarehouseView((s) => s.view);
+  const showSupermarket = isSupermarketRole(role) || (isInternal && warehouseView === "supermarket");
+  const labels = stockLabelsForView(showSupermarket);
+  const scopedMaterials = useMemo(
+    () => (isInternal ? filterByWarehouse(materials, warehouseView) : materials),
+    [isInternal, materials, warehouseView]
+  );
+
   // Filter states
   const [filterVendor, setFilterVendor] = useState("all");
+  // Vendor yang dipilih bisa tidak ada di gudang lain; reset saat ganti gudang.
+  useEffect(() => {
+    setFilterVendor("all");
+  }, [warehouseView]);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMaterial, setFilterMaterial] = useState("");
   const [filterType, setFilterType] = useState("Semua Tipe");
@@ -60,7 +78,7 @@ export default function DashboardRplPage() {
 
   // Filtering
   const filteredData = useMemo(() => {
-    return materials.filter((m) => {
+    return scopedMaterials.filter((m) => {
       const mVendor = String(m.vendorCode || "").trim();
       const mStatus = getMaterialStatus(m);
       const mName = String(m.material || "").toLowerCase();
@@ -73,7 +91,7 @@ export default function DashboardRplPage() {
 
       return matchVendor && matchStatus && matchType && matchSearch;
     });
-  }, [materials, filterVendor, filterStatus, filterMaterial, filterType, getMaterialStatus]);
+  }, [scopedMaterials, filterVendor, filterStatus, filterMaterial, filterType, getMaterialStatus]);
 
   // Statistik
   const stats = useMemo(() => {
@@ -157,6 +175,7 @@ if (filteredData.length > 0) {
         <div>
           <h1 className="text-lg font-bold text-gray-800">RPL Dashboard</h1>
           <p className="text-xs text-gray-500">Monitoring Stock & Vendor Performance</p>
+          {isInternal && <WarehouseViewToggle materials={materials} className="mt-2" />}
         </div>
 
         {/* TOGGLE WHS STOCK / SUPPLIER STOCK */}
@@ -172,10 +191,10 @@ if (filteredData.length > 0) {
           <button
             onClick={() => router.push("/dashboard-supplier")}
             className={`px-3 py-1 text-xs rounded-md font-medium ${
-              pathname === "/dashboard-Vendor" ? "bg-blue-600 text-white" : "text-gray-600"
+              pathname === "/dashboard-supplier" ? "bg-blue-600 text-white" : "text-gray-600"
             }`}
           >
-            Vendor Stock
+            {labels.vendorStock}
           </button>
         </div>
       </div>
@@ -196,7 +215,7 @@ if (filteredData.length > 0) {
           onChange={(e) => setFilterVendor(e.target.value)}
         >
           <option value="all">Semua Vendor</option>
-          {[...new Set(materials.map((m) => String(m.vendorCode || "").trim()).filter(Boolean))].sort().map((v) => (
+          {[...new Set(scopedMaterials.map((m) => String(m.vendorCode || "").trim()).filter(Boolean))].sort().map((v) => (
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
@@ -225,7 +244,7 @@ if (filteredData.length > 0) {
         </select>
       </div>
 
-      <StatCards stats={stats} />
+      <StatCards stats={stats} vendorStockLabel={labels.vendorStock} />
       
       <ChartSection 
         stats={stats} 

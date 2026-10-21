@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { User, useAuthStore } from "@/lib/types";
+import { isVendorRole, isViewerRole } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -51,10 +52,11 @@ export function EditUserModal({
   const [companies, setCompanies] = useState<string[]>([]);
   const [vendorTypes, setVendorTypes] = useState<string[]>([]);
 
-  const isVendor = userRole === "Vendor";
+  // Semua role vendor (termasuk busbar) butuh Nama Perusahaan & Tipe Vendor
+  const isVendor = isVendorRole(userRole);
 
   const isReadOnly =
-    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+    authRole === "Admin" || isVendorRole(authRole) || isViewerRole(authRole);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -239,6 +241,21 @@ export function EditUserModal({
                 <SelectItem value="Admin">Admin</SelectItem>
                 <SelectItem value="Vendor">Vendor</SelectItem>
                 <SelectItem value="Viewer">Viewer</SelectItem>
+                <SelectItem value="Vendor_Busbar_T1">
+                  Vendor Busbar T1
+                </SelectItem>
+                <SelectItem value="Vendor_Busbar_T2">
+                  Vendor Busbar T2
+                </SelectItem>
+                <SelectItem value="Viewer_Busbar_T1">
+                  Viewer Busbar T1
+                </SelectItem>
+                <SelectItem value="Viewer_Busbar_T2">
+                  Viewer Busbar T2
+                </SelectItem>
+                <SelectItem value="Vendor_Supermarket">
+                  Vendor Supermarket
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

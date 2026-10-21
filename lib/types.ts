@@ -72,6 +72,8 @@ export interface Material {
   fmrs?: string | null;
   ss?: number;              
   warningStatus?: string;  
+  /** Tipe vendor pemilik material; "Supermarket" = material di gudang subcontractor. */
+  vendorType?: string;
 }
 
 export interface MaterialStatusResponse {
@@ -85,6 +87,8 @@ export interface MaterialStatusResponse {
   bins: MaterialBin[] | null; 
   vendorStock: number;
   openPO: number;
+  /** Material vendor supermarket: scan IN per pack (top-up), bukan 1 bin penuh. */
+  perPackScanIn?: boolean;
 }
 
 export interface GoSqlNullInt {

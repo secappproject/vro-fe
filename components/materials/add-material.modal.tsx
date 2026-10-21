@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Material, useAuthStore } from "@/lib/types";
+import { isVendorRole, isViewerRole } from "@/lib/roles";
 import { BinPreview } from "./bin-preview";
 import { Wand2 } from "lucide-react";
 
@@ -72,7 +73,7 @@ export function AddMaterialModal({
   const [showKelipatanError, setShowKelipatanError] = useState(false);
 
   const isReadOnly =
-    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+    authRole === "Admin" || isVendorRole(authRole) || isViewerRole(authRole);
 
   useEffect(() => {
     const fetchVendors = async () => {

@@ -251,13 +251,39 @@ const parseRawScan = (rawCode: string): ParsedScan => {
   }
 
   if (movement === "IN") {
-      // IN tidak butuh quantity
+      // MAT_IN_BIN: quantity tidak wajib.
+      // MAT_IN_BIN_QTY: jumlah pack, hanya dipakai material supermarket (scan in per pack).
+      let quantity: number | null = null;
+      if (len === 4) {
+        quantity = parseInt(parts[3], 10);
+        if (isNaN(quantity) || quantity <= 0) {
+          return {
+            raw: code,
+            materialCode,
+            binId,
+            movement: "IN",
+            quantity: null,
+            format: "IN",
+            error: `Qty salah: ${parts[3]}`,
+          };
+        }
+      } else if (len > 4) {
+        return {
+          raw: code,
+          materialCode,
+          binId,
+          movement: "IN",
+          quantity: null,
+          format: null,
+          error: "Format terlalu panjang",
+        };
+      }
       return {
         raw: code,
         materialCode,
         binId,
         movement: "IN",
-        quantity: null,
+        quantity,
         format: "IN",
         error: null,
       };
@@ -470,7 +496,9 @@ export function AutoScanMaterialModal({
           }
 
           const { packQuantity, maxBinQty, quantityPerBin } = baseData;
-          const productType = baseData.productType.toLowerCase(); 
+          const productType = baseData.productType.toLowerCase();
+          // Special sudah per pack sejak awal; per-pack baru berlaku untuk tipe ber-bin.
+          const perPackScanIn = !!baseData.perPackScanIn && productType !== 'special';
           
           const parsed = scan.parsed;
           let rowError: string | null = parsed.error;
@@ -503,9 +531,17 @@ export function AutoScanMaterialModal({
 
           if (!rowError && parsed.format && predictedBinId !== null) {
             if (parsed.format === "IN") {
-              // IN
-              predictedQtyPcs = (productType === 'special') ? packQuantity : quantityPerBin;
-              finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`; 
+              if (perPackScanIn) {
+                // Supermarket: IN per pack (default 1 pack), boleh top-up bin yang masih ada sisa.
+                const packs = parsed.quantity ?? 1;
+                inputQty = String(packs);
+                predictedQtyPcs = packs * packQuantity;
+                finalRawScan = `${parsed.materialCode}_IN_${formattedBin}_${packs}`;
+              } else {
+                // IN biasa: 1 bin penuh
+                predictedQtyPcs = (productType === 'special') ? packQuantity : quantityPerBin;
+                finalRawScan = `${parsed.materialCode}_IN_${formattedBin}`;
+              }
 
             } else if (parsed.format === "OUT_DEFAULT") {
               // OUT tanpa quantity (misal PART_OUT atau PART_OUT_01)
@@ -593,7 +629,14 @@ export function AutoScanMaterialModal({
                 const currentBinStock = simulatedBins.get(predictedBinId) || 0;
 
                 if (predictedMovement === "IN") {
-                  if (currentBinStock > 0) {
+                  if (perPackScanIn) {
+                    const binCapacity =
+                      baseData.bins?.find((b) => b.binSequenceId === predictedBinId)?.maxBinStock ??
+                      quantityPerBin;
+                    if (currentBinStock + predictedQtyPcs > binCapacity) {
+                      rowError = `Bin ${formattedBin} tidak muat (isi ${currentBinStock} + ${predictedQtyPcs} > kapasitas ${binCapacity})`;
+                    }
+                  } else if (currentBinStock > 0) {
                       rowError = `Bin ${formattedBin} sudah terisi (stok: ${currentBinStock})`;
                   }
                   if (!rowError && runningVendorStock < predictedQtyPcs) {
@@ -610,7 +653,8 @@ export function AutoScanMaterialModal({
                       runningQuantity = newTotalQuantity;
                       runningVendorStock -= predictedQtyPcs;
                       runningOpenPO -= predictedQtyPcs;
-                      simulatedBins.set(predictedBinId, predictedQtyPcs);
+                      // Ditambah ke isi bin (sama dengan backend); untuk IN biasa isi bin = 0.
+                      simulatedBins.set(predictedBinId, currentBinStock + predictedQtyPcs);
                     }
                   }
                 } else {

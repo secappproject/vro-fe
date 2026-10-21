@@ -14,6 +14,7 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Vendor, useAuthStore } from "@/lib/types";
+import { isVendorRole, isViewerRole } from "@/lib/roles";
 import { DeleteVendorAlert } from "./delete-vendor-alert";
 import { EditVendorModal } from "./edit-vendor-modal";
 
@@ -33,9 +34,9 @@ export function VendorDataTableRowActions({
   const authRole = useAuthStore((state) => state.role);
 
   const isReadOnly =
-    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+    authRole === "Admin" || isVendorRole(authRole) || isViewerRole(authRole);
 
-  if (authRole === "Viewer") {
+  if (isViewerRole(authRole)) {
     return null;
   }
 

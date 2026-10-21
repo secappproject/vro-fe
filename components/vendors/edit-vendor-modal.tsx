@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Vendor, useAuthStore } from "@/lib/types";
+import { isVendorRole, isViewerRole } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -60,7 +61,7 @@ export function EditVendorModal({
   );
 
   const isReadOnly =
-    authRole === "Admin" || authRole === "Vendor" || authRole === "Viewer";
+    authRole === "Admin" || isVendorRole(authRole) || isViewerRole(authRole);
 
   const handleSubmit = async () => {
     const finalVendorType =
@@ -93,6 +94,17 @@ export function EditVendorModal({
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Gagal mengupdate vendor.");
+      }
+
+      // Rename vendor ikut memindahkan material & akun user-nya (lihat backend).
+      // Akun vendor yang sedang login masih menyimpan nama lama di browser.
+      const result = await response.json().catch(() => null);
+      if (result && vendor.companyName !== companyName) {
+        alert(
+          `Nama vendor diganti dari "${vendor.companyName}" ke "${companyName}".\n` +
+            `${result.materialsMoved ?? 0} material dan ${result.usersMoved ?? 0} akun user ikut dipindahkan.\n\n` +
+            `User vendor ini perlu logout lalu login ulang.`
+        );
       }
 
       const updatedVendor: Vendor = {

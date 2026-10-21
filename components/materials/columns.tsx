@@ -2,6 +2,7 @@
 
 import { ColumnDef, Row } from "@tanstack/react-table";
 import { Material } from "@/lib/types";
+import { stockLabelsForView, type StockLabels } from "@/lib/roles";
 import { DataTableColumnHeader } from "../reusable-datatable/column-header";
 import { MaterialDataTableRowActions } from "./row-actions";
 import { BinPreview } from "./bin-preview";
@@ -15,6 +16,15 @@ const formatNumber = (value: unknown): string => {
   const num = Number(value);
   if (isNaN(num)) return "0";
   return new Intl.NumberFormat("id-ID").format(num);
+};
+
+// Mengubah warningStatus mentah ("critical"/"warning"/lainnya) menjadi label
+// yang ditampilkan di kolom Remark Vendor. Dipakai bersama oleh sel dan accessor
+// kolom supaya nilai tampilan dan nilai filter selalu sinkron.
+const warningStatusLabel = (status: unknown): "Critical" | "Warning" | "Safe" => {
+  if (status === "critical") return "Critical";
+  if (status === "warning") return "Warning";
+  return "Safe";
 };
 
 const exactFilterFn = (
@@ -38,7 +48,9 @@ const exactFilterFn = (
 
 export const getMaterialColumns = (
   onMaterialUpdated: MaterialUpdateHandler,
-  onMaterialDeleted: MaterialDeleteHandler
+  onMaterialDeleted: MaterialDeleteHandler,
+  // Label kolom per jenis gudang (supermarket: "Schneider Stock", "Remark Supermarket", "Remark Schneider").
+  labels: StockLabels = stockLabelsForView(false)
 ): ColumnDef<Material>[] => [
   {
     id: "select",
@@ -263,7 +275,7 @@ export const getMaterialColumns = (
       }
     },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Remark SEC" />
+      <DataTableColumnHeader column={column} title={labels.remark} />
     ),
     cell: ({ row }) => {
       const remark = row.getValue("remark") as string;
@@ -324,7 +336,7 @@ export const getMaterialColumns = (
   {
     accessorKey: "vendorStock",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Vendor Stock" />
+      <DataTableColumnHeader column={column} title={labels.vendorStock} />
     ),
     cell: ({ row }) => {
       const stock = (row.getValue("vendorStock") as number | null) ?? 0;
@@ -440,16 +452,21 @@ export const getMaterialColumns = (
     filterFn: exactFilterFn,
   },
   {
-    accessorKey: "Remark Vendor",
+    id: "Remark Vendor",
+    // Sebelumnya pakai accessorKey "Remark Vendor" yang membaca properti tak ada di
+    // objek material, sehingga nilai kolom selalu undefined -> opsi filter cuma "(Kosong)"
+    // dan filter Critical/Warning/Safe tidak pernah cocok. Sekarang nilai kolom diturunkan
+    // dari warningStatus, sama persis dengan yang ditampilkan sel, jadi opsi filter benar.
+    accessorFn: (row) => warningStatusLabel(row.warningStatus),
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Remark Vendor" />
+      <DataTableColumnHeader column={column} title={labels.remarkVendor} />
     ),
     cell: ({ row }) => {
-      const status = row.original.warningStatus;
-      if (status === "critical") {
+      const label = warningStatusLabel(row.original.warningStatus);
+      if (label === "Critical") {
         return <span className="text-red-600 font-bold">Critical</span>;
       }
-      if (status === "warning") {
+      if (label === "Warning") {
         return <span className="text-yellow-600 font-bold">Warning</span>;
       }
       return <span className="text-green-600">Safe</span>;
