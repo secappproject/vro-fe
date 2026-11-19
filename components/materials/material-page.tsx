@@ -157,7 +157,7 @@ export function MaterialPage() {
               onClick={() => setIsVendorImportOpen(true)}
             >
               <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Import Supplier Stock
+              Import {showSupermarket ? "Schneider" : "Supplier"} Stock
             </Button>
           )}
 
@@ -237,6 +237,7 @@ export function MaterialPage() {
         <ImportVendorStockModal
           setIsOpen={setIsVendorImportOpen}
           onImportSuccess={getMaterialData}
+          stockLabel={labels.vendorStock}
         />
       </Dialog>
 

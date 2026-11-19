@@ -20,6 +20,8 @@ import { FileSpreadsheet, UploadCloud, X, Download, Check, Square } from "lucide
 interface ImportVendorStockModalProps {
   setIsOpen: (open: boolean) => void;
   onImportSuccess: () => void;
+  /** Nama kolom stok: "Vendor Stock", atau "Schneider Stock" di tampilan Supermarket. */
+  stockLabel?: string;
 }
 
 interface VendorStockPayload {
@@ -40,6 +42,7 @@ const formatFileSize = (bytes: number) => {
 export function ImportVendorStockModal({
   setIsOpen,
   onImportSuccess,
+  stockLabel = "Vendor Stock",
 }: ImportVendorStockModalProps) {
   const [activeTab, setActiveTab] = useState<"stock" | "openpo">("stock");
   
@@ -97,7 +100,7 @@ export function ImportVendorStockModal({
     let dummyData = "\nCONTOH-MAT-01";
 
     if (activeTab === "stock") {
-        headers.push("Vendor Stock");
+        headers.push(stockLabel);
         dummyData += ",100";
     } else {
         headers.push("Open PO");
@@ -109,7 +112,7 @@ export function ImportVendorStockModal({
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `template-${activeTab === "stock" ? "vendor-stock" : "open-po"}.csv`;
+    link.download = `template-${activeTab === "stock" ? stockLabel.toLowerCase().replace(" ", "-") : "open-po"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -131,7 +134,8 @@ export function ImportVendorStockModal({
         
         const requiredHeaders = ["Material Code"];
         if (activeTab === "stock") {
-            requiredHeaders.push("Vendor Stock");
+            // Template lama berkolom "Vendor Stock" tetap diterima.
+            requiredHeaders.push(fields.includes("Vendor Stock") ? "Vendor Stock" : stockLabel);
         } else {
             requiredHeaders.push("Open PO");
         }
@@ -157,7 +161,7 @@ export function ImportVendorStockModal({
            
            
            if (activeTab === "stock") {
-               const rawStock = row["Vendor Stock"]?.trim();
+               const rawStock = (row[stockLabel] ?? row["Vendor Stock"])?.trim();
                let vStock: number | undefined;
 
                if (!rawStock) {
@@ -258,7 +262,7 @@ export function ImportVendorStockModal({
         throw new Error(json.error || "Gagal melakukan update.");
       }
 
-      let message = `Berhasil update ${json.updatedCount} material (${activeTab === 'stock' ? 'Vendor Stock' : 'Open PO'}).`;
+      let message = `Berhasil update ${json.updatedCount} material (${activeTab === 'stock' ? stockLabel : 'Open PO'}).`;
       
       if (json.errors && json.errors.length > 0) {
         message += `\n\nGagal (${json.errors.length} item):\n` + json.errors.slice(0, 5).join("\n") + (json.errors.length > 5 ? "\n..." : "");
@@ -279,7 +283,7 @@ export function ImportVendorStockModal({
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Import Data Supplier</DialogTitle>
+        <DialogTitle>Import {stockLabel === "Vendor Stock" ? "Data Supplier" : stockLabel}</DialogTitle>
         <DialogDescription>
           Pilih kategori data yang ingin diupdate melalui file CSV.
         </DialogDescription>
@@ -287,7 +291,7 @@ export function ImportVendorStockModal({
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="stock">Supplier Stock</TabsTrigger>
+          <TabsTrigger value="stock">{stockLabel === "Vendor Stock" ? "Supplier Stock" : stockLabel}</TabsTrigger>
           <TabsTrigger value="openpo">Open PO</TabsTrigger>
         </TabsList>
 
@@ -390,7 +394,7 @@ export function ImportVendorStockModal({
                 <span>
                     Siap update <b>{validPayloads.length}</b> material 
                     <span className="text-xs ml-1 opacity-75">
-                    ({activeTab === "stock" ? "Vendor Stock" : "Open PO"})
+                    ({activeTab === "stock" ? stockLabel : "Open PO"})
                     </span>
                 </span>
               </div>
