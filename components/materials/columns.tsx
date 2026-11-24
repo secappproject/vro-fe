@@ -173,8 +173,12 @@ export const getMaterialColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Total Bins" />
     ),
+    // Hitung bin yang benar-benar ada. Max/Pack cuma benar untuk kanban (1 bin = 1 pack);
+    // consumable/option isi per bin ≠ pack (mis. 3 bin × 20, pack 1 → dulu tampil 60).
     accessorFn: (row) =>
-      row.packQuantity > 0 ? Math.ceil(row.maxBinQty / row.packQuantity) : 0,
+      row.bins?.length
+        ? row.bins.length
+        : row.packQuantity > 0 ? Math.ceil(row.maxBinQty / row.packQuantity) : 0,
     cell: ({ row }) => {
        
        return <span>{formatNumber(row.getValue("totalBins"))}</span>;
